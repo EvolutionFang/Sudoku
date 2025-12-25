@@ -1,7 +1,11 @@
 /node_modules/
 /dist/
 
+/image/
+
 .DS_Store
 .idea
 tailwind-full.config.js
 pnpm-lock.yaml
+test.md
+test.pdf
