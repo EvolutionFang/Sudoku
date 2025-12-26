@@ -8,7 +8,6 @@
 	import Controls from './components/Controls/index.svelte';
 	import Header from './components/Header/index.svelte';
 	import Modal from './components/Modal/index.svelte';
-	import '@sudoku/stores/history';
 
 	gameWon.subscribe(won => {
 		if (won) {
