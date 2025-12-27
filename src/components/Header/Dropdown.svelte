@@ -52,12 +52,10 @@
 				try {
 					game.startCustom(value.trim());
 				} catch (e) {
-					modal.show('confirm', {
-						title: '错误',
-						text: e.message || 'Invalid custom Sudoku puzzle',
-						button: '确定',
-						onHide: game.resume
-					});
+					const errorText = e.message || 'Invalid custom Sudoku puzzle';
+					alert(errorText);
+					console.error('Sudoku 自定义游戏启动失败：', errorText, e);
+					game.resume();
 				}
 			},
 			validate: (val) => {
