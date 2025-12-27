@@ -54,7 +54,7 @@
 				} catch (e) {
 					const errorText = e.message || 'Invalid custom Sudoku puzzle';
 					alert(errorText);
-					console.error('Sudoku 自定义游戏启动失败：', errorText, e);
+					console.error('Sudoku custom game start failed:', errorText, e);
 					game.resume();
 				}
 			},

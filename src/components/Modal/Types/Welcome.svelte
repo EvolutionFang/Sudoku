@@ -6,7 +6,6 @@
 	export let data = {};
 	export let hideModal;
 
-
 	let difficulty = $difficultyStore;
 	let input = data.sencode || '';
 	let errorMsg = '';
