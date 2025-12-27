@@ -1,26 +1,31 @@
 <script>
 	import { difficulty as difficultyStore } from '@sudoku/stores/difficulty';
 	import { startNew, startCustom } from '@sudoku/game';
-	import { validateSencode } from '@sudoku/sencode';
 	import { DIFFICULTIES } from '@sudoku/constants';
 
 	export let data = {};
 	export let hideModal;
 
-	let difficulty = $difficultyStore;
-	let sencode = data.sencode || '';
 
-	$: enteredSencode = sencode.trim().length !== 0;
-	$: buttonDisabled = enteredSencode ? !validateSencode(sencode) : !DIFFICULTIES.hasOwnProperty(difficulty);
+	let difficulty = $difficultyStore;
+	let input = data.sencode || '';
+	let errorMsg = '';
+
+	$: enteredInput = input.trim().length !== 0;
+	$: buttonDisabled = enteredInput ? false : !DIFFICULTIES.hasOwnProperty(difficulty);
 
 	function handleStart() {
-		if (validateSencode(sencode)) {
-			startCustom(sencode);
-		} else {
-			startNew(difficulty);
-		}
-
-		hideModal();
+	    if (enteredInput) {
+	        try {
+	            startCustom(input.trim());
+	            hideModal();
+	        } catch (e) {
+	            errorMsg = e.message || 'Invalid custom Sudoku puzzle';
+	        }
+	    } else {
+	        startNew(difficulty);
+	        hideModal();
+	    }
 	}
 </script>
 
@@ -32,10 +37,11 @@
 	</div>
 {/if}
 
+
 <label for="difficulty" class="text-lg mb-3">To start a game, choose a difficulty:</label>
 
 <div class="inline-block relative mb-6">
-	<select id="difficulty" class="btn btn-small w-full appearance-none leading-normal" bind:value={difficulty} disabled={enteredSencode}>
+	<select id="difficulty" class="btn btn-small w-full appearance-none leading-normal" bind:value={difficulty} disabled={enteredInput}>
 		{#each Object.entries(DIFFICULTIES) as [difficultyValue, difficultyLabel]}
 			<option value={difficultyValue}>{difficultyLabel}</option>
 		{/each}
@@ -48,9 +54,13 @@
 	</div>
 </div>
 
-<label for="sencode" class="text-lg mb-3">Or, if you have a code for a custom Sudoku puzzle, enter it here:</label>
+<label for="input" class="text-lg mb-3">Or, if you have a code for a custom Sudoku puzzle, enter it here:</label>
 
-<input id="sencode" class="input font-mono mb-5" bind:value={sencode} type="text">
+<input id="input" class="input font-mono mb-5" bind:value={input} type="text" placeholder="输入 SudokuWiki URL 或 Sencode" />
+
+{#if errorMsg}
+    <div class="text-red-600 mb-2">{errorMsg}</div>
+{/if}
 
 <div class="flex justify-end">
 	<button class="btn btn-small btn-primary" disabled={buttonDisabled} on:click={handleStart}>Start</button>

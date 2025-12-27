@@ -49,9 +49,21 @@
 			button: 'Start',
 			onHide: game.resume,
 			callback: (value) => {
-				game.startCustom(value);
+				try {
+					game.startCustom(value.trim());
+				} catch (e) {
+					modal.show('confirm', {
+						title: '错误',
+						text: e.message || 'Invalid custom Sudoku puzzle',
+						button: '确定',
+						onHide: game.resume
+					});
+				}
 			},
-			validate: validateSencode
+			validate: (val) => {
+				const v = val.trim();
+				return v.length > 0;
+			}
 		});
 	}
 
