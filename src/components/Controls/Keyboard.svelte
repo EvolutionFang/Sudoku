@@ -39,33 +39,6 @@
 			}
 		}
 	}
-	function calculateCellCandidates(grid, x, y) {
-		
-		const candidates = [];
-		for (let num = 1; num <= 9; num++) {
-			let valid = true;
-	
-			for (let col = 0; col < 9; col++) {
-				if (grid[y][col] === num) valid = false;
-			}
-			
-			for (let row = 0; row < 9; row++) {
-				if (grid[row][x] === num) valid = false;
-			}
-			
-			const startRow = Math.floor(y / 3) * 3;
-			const startCol = Math.floor(x / 3) * 3;
-			for (let row = startRow; row < startRow + 3; row++) {
-				for (let col = startCol; col < startCol + 3; col++) {
-					if (grid[row][col] === num) valid = false;
-				}
-			}
-			
-			if (valid) candidates.push(num);
-		}
-		
-		return candidates;
-	}
 
 	function handleKey(e) {
 		switch (e.key || e.keyCode) {
