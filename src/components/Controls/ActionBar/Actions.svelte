@@ -8,6 +8,13 @@
 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
 	import { gamePaused } from '@sudoku/stores/game';
 
+	import { 
+		performBacktrack,
+		historyTree
+	} from '@sudoku/stores/treeHistoryManager';
+
+	$: canBacktrack = $historyTree.canBacktrack;
+
 	$: hintsAvailable = $hints > 0;
 
 	function handleHint() {
@@ -22,6 +29,18 @@
 </script>
 
 <div class="action-buttons space-x-3">
+
+	<button class="btn btn-round btn-badge" 
+	        disabled={$gamePaused || !canBacktrack} 
+	        on:click={() => {
+	          performBacktrack();
+	        }}
+	        title="reverse">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+			      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+		</svg>
+	</button>
 
 	<button class="btn btn-round" disabled={$gamePaused} title="Undo">
 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

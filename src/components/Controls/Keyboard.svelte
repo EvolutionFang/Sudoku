@@ -3,9 +3,16 @@
 	import { cursor } from '@sudoku/stores/cursor';
 	import { notes } from '@sudoku/stores/notes';
 	import { candidates } from '@sudoku/stores/candidates';
+	import { getCandidateSet } from '@sudoku/strategies';
 
 	// TODO: Improve keyboardDisabled
 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+	import { 
+		saveUserAction,
+		historyTree
+	} from '@sudoku/stores/treeHistoryManager';
+
+	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
 
 	function handleKeyButton(num) {
 		if (!$keyboardDisabled) {
@@ -20,10 +27,44 @@
 				if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
 					candidates.clear($cursor);
 				}
+				const total_candidates = getCandidateSet($userGrid, ['NakedPair', 'HiddenSingle']);
+				let cellCandidates = total_candidates[$cursor.x][$cursor.y];
 
+				if(cellCandidates.length > 1 && !isInBacktrackMode) {
+					saveUserAction($cursor, num, cellCandidates, true);
+				}
+				
 				userGrid.set($cursor, num);
+				saveUserAction($cursor, num, cellCandidates, false);
 			}
 		}
+	}
+	function calculateCellCandidates(grid, x, y) {
+		
+		const candidates = [];
+		for (let num = 1; num <= 9; num++) {
+			let valid = true;
+	
+			for (let col = 0; col < 9; col++) {
+				if (grid[y][col] === num) valid = false;
+			}
+			
+			for (let row = 0; row < 9; row++) {
+				if (grid[row][x] === num) valid = false;
+			}
+			
+			const startRow = Math.floor(y / 3) * 3;
+			const startCol = Math.floor(x / 3) * 3;
+			for (let row = startRow; row < startRow + 3; row++) {
+				for (let col = startCol; col < startCol + 3; col++) {
+					if (grid[row][col] === num) valid = false;
+				}
+			}
+			
+			if (valid) candidates.push(num);
+		}
+		
+		return candidates;
 	}
 
 	function handleKey(e) {
