@@ -1,0 +1,1414 @@
+文件夹：components
+生成时间：当前目录下所有 .svelte / .js 文件内容
+
+
+============================================================
+文件: Board\Candidates.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { CANDIDATE_COORDS } from '@sudoku/constants';
+   3 | 
+   4 | 	export let candidates = [];
+   5 | </script>
+   6 | 
+   7 | <div class="candidate-grid">
+   8 | 	{#each CANDIDATE_COORDS as [row, col], index}
+   9 | 		<div class="candidate row-start-{row} col-start-{col}"
+  10 | 		     class:invisible={!candidates.includes(index + 1)}
+  11 | 		     class:visible={candidates.includes(index + 1)}>
+  12 | 			{index + 1}
+  13 | 		</div>
+  14 | 	{/each}
+  15 | </div>
+  16 | 
+  17 | <style>
+  18 | 	.candidate-grid {
+  19 | 		@apply grid h-full w-full p-1;
+  20 | 	}
+  21 | 
+  22 | 	.candidate {
+  23 | 		@apply h-full w-full row-end-auto col-end-auto leading-full;
+  24 | 	}
+  25 | </style>
+
+============================================================
+文件: Board\Cell.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import Candidates from './Candidates.svelte';
+   3 | 	import { fade } from 'svelte/transition';
+   4 | 	import { SUDOKU_SIZE } from '@sudoku/constants';
+   5 | 	import { cursor } from '@sudoku/stores/cursor';
+   6 | 
+   7 | 	export let value;
+   8 | 	export let cellX;
+   9 | 	export let cellY;
+  10 | 	export let candidates;
+  11 | 
+  12 | 	export let disabled;
+  13 | 	export let conflictingNumber;
+  14 | 	export let userNumber;
+  15 | 	export let selected;
+  16 | 	export let sameArea;
+  17 | 	export let sameNumber;
+  18 | 
+  19 | 	const borderRight = (cellX !== SUDOKU_SIZE && cellX % 3 !== 0);
+  20 | 	const borderRightBold = (cellX !== SUDOKU_SIZE && cellX % 3 === 0);
+  21 | 	const borderBottom = (cellY !== SUDOKU_SIZE && cellY % 3 !== 0);
+  22 | 	const borderBottomBold = (cellY !== SUDOKU_SIZE && cellY % 3 === 0);
+  23 | </script>
+  24 | 
+  25 | <div class="cell row-start-{cellY} col-start-{cellX}"
+  26 |      class:border-r={borderRight}
+  27 |      class:border-r-4={borderRightBold}
+  28 |      class:border-b={borderBottom}
+  29 |      class:border-b-4={borderBottomBold}>
+  30 | 
+  31 | 	{#if !disabled}
+  32 | 		<div class="cell-inner"
+  33 | 		     class:user-number={userNumber}
+  34 | 		     class:selected={selected}
+  35 | 		     class:same-area={sameArea}
+  36 | 		     class:same-number={sameNumber}
+  37 | 		     class:conflicting-number={conflictingNumber}>
+  38 | 
+  39 | 			<button class="cell-btn" on:click={cursor.set(cellX - 1, cellY - 1)}>
+  40 | 				{#if candidates}
+  41 | 					<Candidates {candidates} />
+  42 | 				{:else}
+  43 | 					<span class="cell-text">{value || ''}</span>
+  44 | 				{/if}
+  45 | 			</button>
+  46 | 
+  47 | 		</div>
+  48 | 	{/if}
+  49 | 
+  50 | </div>
+  51 | 
+  52 | <style>
+  53 | 	.cell {
+  54 | 		@apply h-full w-full row-end-auto col-end-auto;
+  55 | 	}
+  56 | 
+  57 | 	.cell-inner {
+  58 | 		@apply relative h-full w-full text-gray-800;
+  59 | 	}
+  60 | 
+  61 | 	.cell-btn {
+  62 | 		@apply absolute inset-0 h-full w-full;
+  63 | 	}
+  64 | 
+  65 | 	.cell-btn:focus {
+  66 | 		@apply outline-none;
+  67 | 	}
+  68 | 
+  69 | 	.cell-text {
+  70 | 		@apply leading-full text-base;
+  71 | 	}
+  72 | 
+  73 | 	@media (min-width: 300px) {
+  74 | 		.cell-text {
+  75 | 			@apply text-lg;
+  76 | 		}
+  77 | 	}
+  78 | 
+  79 | 	@media (min-width: 350px) {
+  80 | 		.cell-text {
+  81 | 			@apply text-xl;
+  82 | 		}
+  83 | 	}
+  84 | 
+  85 | 	@media (min-width: 400px) {
+  86 | 		.cell-text {
+  87 | 			@apply text-2xl;
+  88 | 		}
+  89 | 	}
+  90 | 
+  91 | 	@media (min-width: 500px) {
+  92 | 		.cell-text {
+  93 | 			@apply text-3xl;
+  94 | 		}
+  95 | 	}
+  96 | 
+  97 | 	@media (min-width: 600px) {
+  98 | 		.cell-text {
+  99 | 			@apply text-4xl;
+ 100 | 		}
+ 101 | 	}
+ 102 | 
+ 103 | 	.user-number {
+ 104 | 		@apply text-primary;
+ 105 | 	}
+ 106 | 
+ 107 | 	.selected {
+ 108 | 		@apply bg-primary text-white;
+ 109 | 	}
+ 110 | 
+ 111 | 	.same-area {
+ 112 | 		@apply bg-primary-lighter;
+ 113 | 	}
+ 114 | 
+ 115 | 	.same-number {
+ 116 | 		@apply bg-primary-light;
+ 117 | 	}
+ 118 | 
+ 119 | 	.conflicting-number {
+ 120 | 		@apply text-red-600;
+ 121 | 	}
+ 122 | </style>
+
+============================================================
+文件: Board\index.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { BOX_SIZE } from '@sudoku/constants';
+   3 | 	import { gamePaused } from '@sudoku/stores/game';
+   4 | 	import { grid, userGrid, invalidCells } from '@sudoku/stores/grid';
+   5 | 	import { settings } from '@sudoku/stores/settings';
+   6 | 	import { cursor } from '@sudoku/stores/cursor';
+   7 | 	import { candidates } from '@sudoku/stores/candidates';
+   8 | 	import Cell from './Cell.svelte';
+   9 | 
+  10 | 	function isSelected(cursorStore, x, y) {
+  11 | 		return cursorStore.x === x && cursorStore.y === y;
+  12 | 	}
+  13 | 
+  14 | 	function isSameArea(cursorStore, x, y) {
+  15 | 		if (cursorStore.x === null && cursorStore.y === null) return false;
+  16 | 		if (cursorStore.x === x || cursorStore.y === y) return true;
+  17 | 
+  18 | 		const cursorBoxX = Math.floor(cursorStore.x / BOX_SIZE);
+  19 | 		const cursorBoxY = Math.floor(cursorStore.y / BOX_SIZE);
+  20 | 		const cellBoxX = Math.floor(x / BOX_SIZE);
+  21 | 		const cellBoxY = Math.floor(y / BOX_SIZE);
+  22 | 		return (cursorBoxX === cellBoxX && cursorBoxY === cellBoxY);
+  23 | 	}
+  24 | 
+  25 | 	function getValueAtCursor(gridStore, cursorStore) {
+  26 | 		if (cursorStore.x === null && cursorStore.y === null) return null;
+  27 | 
+  28 | 		return gridStore[cursorStore.y][cursorStore.x];
+  29 | 	}
+  30 | </script>
+  31 | 
+  32 | <div class="board-padding relative z-10">
+  33 | 	<div class="max-w-xl relative">
+  34 | 		<div class="w-full" style="padding-top: 100%"></div>
+  35 | 	</div>
+  36 | 	<div class="board-padding absolute inset-0 flex justify-center">
+  37 | 
+  38 | 		<div class="bg-white shadow-2xl rounded-xl overflow-hidden w-full h-full max-w-xl grid" class:bg-gray-200={$gamePaused}>
+  39 | 
+  40 | 			{#each $userGrid as row, y}
+  41 | 				{#each row as value, x}
+  42 | 					<Cell {value}
+  43 | 					      cellY={y + 1}
+  44 | 					      cellX={x + 1}
+  45 | 					      candidates={$candidates[x + ',' + y]}
+  46 | 					      disabled={$gamePaused}
+  47 | 					      selected={isSelected($cursor, x, y)}
+  48 | 					      userNumber={$grid[y][x] === 0}
+  49 | 					      sameArea={$settings.highlightCells && !isSelected($cursor, x, y) && isSameArea($cursor, x, y)}
+  50 | 					      sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor($userGrid, $cursor) === value}
+  51 | 					      conflictingNumber={$settings.highlightConflicting && $grid[y][x] === 0 && $invalidCells.includes(x + ',' + y)} />
+  52 | 				{/each}
+  53 | 			{/each}
+  54 | 
+  55 | 		</div>
+  56 | 
+  57 | 	</div>
+  58 | </div>
+  59 | 
+  60 | <style>
+  61 | 	.board-padding {
+  62 | 		@apply px-4 pb-4;
+  63 | 	}
+  64 | </style>
+
+============================================================
+文件: Controls\index.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import ActionBar from './ActionBar/index.svelte';
+   3 | 	import Keyboard from './Keyboard.svelte';
+   4 | </script>
+   5 | 
+   6 | <div class="px-4 pb-5 flex justify-center">
+   7 | 	<div class="w-full max-w-xl">
+   8 | 		<ActionBar />
+   9 | 
+  10 | 		<Keyboard />
+  11 | 	</div>
+  12 | </div>
+
+============================================================
+文件: Controls\Keyboard.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { userGrid } from '@sudoku/stores/grid';
+   3 | 	import { cursor } from '@sudoku/stores/cursor';
+   4 | 	import { notes } from '@sudoku/stores/notes';
+   5 | 	import { candidates } from '@sudoku/stores/candidates';
+   6 | 	import { getCandidateSet } from '@sudoku/strategies';
+   7 | 
+   8 | 	// TODO: Improve keyboardDisabled
+   9 | 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+  10 | 	import {
+  11 | 		saveUserAction,
+  12 | 		historyTree
+  13 | 	} from '@sudoku/stores/treeHistoryManager';
+  14 | 
+  15 | 	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
+  16 | 
+  17 | 	function handleKeyButton(num) {
+  18 | 		if (!$keyboardDisabled) {
+  19 | 			if ($notes) {
+  20 | 				if (num === 0) {
+  21 | 					candidates.clear($cursor);
+  22 | 				} else {
+  23 | 					candidates.add($cursor, num);
+  24 | 				}
+  25 | 				userGrid.set($cursor, 0);
+  26 | 			} else {
+  27 | 				if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
+  28 | 					candidates.clear($cursor);
+  29 | 				}
+  30 | 				const total_candidates = getCandidateSet($userGrid, ['NakedPair', 'HiddenSingle']);
+  31 | 				let cellCandidates = total_candidates[$cursor.x][$cursor.y];
+  32 | 
+  33 | 				if(cellCandidates.length > 1 && !isInBacktrackMode) {
+  34 | 					saveUserAction($cursor, num, cellCandidates, true);
+  35 | 				}
+  36 | 
+  37 | 				userGrid.set($cursor, num);
+  38 | 				saveUserAction($cursor, num, cellCandidates, false);
+  39 | 			}
+  40 | 		}
+  41 | 	}
+  42 | 
+  43 | 	function handleKey(e) {
+  44 | 		switch (e.key || e.keyCode) {
+  45 | 			case 'ArrowUp':
+  46 | 			case 38:
+  47 | 			case 'w':
+  48 | 			case 87:
+  49 | 				cursor.move(0, -1);
+  50 | 				break;
+  51 | 
+  52 | 			case 'ArrowDown':
+  53 | 			case 40:
+  54 | 			case 's':
+  55 | 			case 83:
+  56 | 				cursor.move(0, 1);
+  57 | 				break;
+  58 | 
+  59 | 			case 'ArrowLeft':
+  60 | 			case 37:
+  61 | 			case 'a':
+  62 | 			case 65:
+  63 | 				cursor.move(-1);
+  64 | 				break;
+  65 | 
+  66 | 			case 'ArrowRight':
+  67 | 			case 39:
+  68 | 			case 'd':
+  69 | 			case 68:
+  70 | 				cursor.move(1);
+  71 | 				break;
+  72 | 
+  73 | 			case 'Backspace':
+  74 | 			case 8:
+  75 | 			case 'Delete':
+  76 | 			case 46:
+  77 | 				handleKeyButton(0);
+  78 | 				break;
+  79 | 
+  80 | 			default:
+  81 | 				if (e.key && e.key * 1 >= 0 && e.key * 1 < 10) {
+  82 | 					handleKeyButton(e.key * 1);
+  83 | 				} else if (e.keyCode - 48 >= 0 && e.keyCode - 48 < 10) {
+  84 | 					handleKeyButton(e.keyCode - 48);
+  85 | 				}
+  86 | 				break;
+  87 | 		}
+  88 | 	}
+  89 | </script>
+  90 | 
+  91 | <svelte:window on:keydown={handleKey} /><!--on:beforeunload|preventDefault={e => e.returnValue = ''} />-->
+  92 | 
+  93 | <div class="keyboard-grid">
+  94 | 
+  95 | 	{#each Array(10) as _, keyNum}
+  96 | 		{#if keyNum === 9}
+  97 | 			<button class="btn btn-key" disabled={$keyboardDisabled} title="Erase Field" on:click={() => handleKeyButton(0)}>
+  98 | 				<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  99 | 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+ 100 | 				</svg>
+ 101 | 			</button>
+ 102 | 		{:else}
+ 103 | 			<button class="btn btn-key" disabled={$keyboardDisabled} title="Insert {keyNum + 1}" on:click={() => handleKeyButton(keyNum + 1)}>
+ 104 | 				{keyNum + 1}
+ 105 | 			</button>
+ 106 | 		{/if}
+ 107 | 	{/each}
+ 108 | 
+ 109 | </div>
+ 110 | 
+ 111 | <style>
+ 112 | 	.keyboard-grid {
+ 113 | 		@apply grid grid-rows-2 grid-cols-5 gap-3;
+ 114 | 	}
+ 115 | 
+ 116 | 
+ 117 | 	.btn-key {
+ 118 | 		@apply py-4 px-0;
+ 119 | 	}
+ 120 | </style>
+
+============================================================
+文件: Controls\ActionBar\Actions.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { candidates } from '@sudoku/stores/candidates';
+   3 | 	import { userGrid } from '@sudoku/stores/grid';
+   4 | 	import { cursor } from '@sudoku/stores/cursor';
+   5 | 	import { hints } from '@sudoku/stores/hints';
+   6 | 	import { notes } from '@sudoku/stores/notes';
+   7 | 	import { settings } from '@sudoku/stores/settings';
+   8 | 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+   9 | 	import { gamePaused } from '@sudoku/stores/game';
+  10 | 
+  11 | 	import {
+  12 | 		performBacktrack,
+  13 | 		historyTree
+  14 | 	} from '@sudoku/stores/treeHistoryManager';
+  15 | 
+  16 | 	$: canBacktrack = $historyTree.canBacktrack;
+  17 | 
+  18 | 	$: hintsAvailable = $hints > 0;
+  19 | 
+  20 | 	function handleHint() {
+  21 | 		if (hintsAvailable) {
+  22 | 			if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
+  23 | 				candidates.clear($cursor);
+  24 | 			}
+  25 | 
+  26 | 			userGrid.applyHint($cursor);
+  27 | 		}
+  28 | 	}
+  29 | </script>
+  30 | 
+  31 | <div class="action-buttons space-x-3">
+  32 | 
+  33 | 	<button class="btn btn-round btn-badge"
+  34 | 	        disabled={$gamePaused || !canBacktrack}
+  35 | 	        on:click={() => {
+  36 | 	          performBacktrack();
+  37 | 	        }}
+  38 | 	        title="reverse">
+  39 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  40 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+  41 | 			      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+  42 | 		</svg>
+  43 | 	</button>
+  44 | 
+  45 | 	<button class="btn btn-round" disabled={$gamePaused} title="Undo">
+  46 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  47 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+  48 | 		</svg>
+  49 | 	</button>
+  50 | 
+  51 | 	<button class="btn btn-round" disabled={$gamePaused} title="Redo">
+  52 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  53 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 90 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+  54 | 		</svg>
+  55 | 	</button>
+  56 | 
+  57 | 	<button class="btn btn-round btn-badge" disabled={$keyboardDisabled || !hintsAvailable || $userGrid[$cursor.y][$cursor.x] !== 0} on:click={handleHint} title="Hints ({$hints})">
+  58 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  59 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+  60 | 		</svg>
+  61 | 
+  62 | 		{#if $settings.hintsLimited}
+  63 | 			<span class="badge" class:badge-primary={hintsAvailable}>{$hints}</span>
+  64 | 		{/if}
+  65 | 	</button>
+  66 | 
+  67 | 	<button class="btn btn-round btn-badge" on:click={notes.toggle} title="Notes ({$notes ? 'ON' : 'OFF'})">
+  68 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  69 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+  70 | 		</svg>
+  71 | 
+  72 | 		<span class="badge tracking-tighter" class:badge-primary={$notes}>{$notes ? 'ON' : 'OFF'}</span>
+  73 | 	</button>
+  74 | 
+  75 | </div>
+  76 | 
+  77 | 
+  78 | <style>
+  79 | 	.action-buttons {
+  80 | 		@apply flex flex-wrap justify-evenly self-end;
+  81 | 	}
+  82 | 
+  83 | 	.btn-badge {
+  84 | 		@apply relative;
+  85 | 	}
+  86 | 
+  87 | 	.badge {
+  88 | 		min-height: 20px;
+  89 | 		min-width:  20px;
+  90 | 		@apply p-1 rounded-full leading-none text-center text-xs text-white bg-gray-600 inline-block absolute top-0 left-0;
+  91 | 	}
+  92 | 
+  93 | 	.badge-primary {
+  94 | 		@apply bg-primary;
+  95 | 	}
+  96 | </style>
+
+============================================================
+文件: Controls\ActionBar\index.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import Timer from './Timer.svelte';
+   3 | 	import Actions from './Actions.svelte';
+   4 | </script>
+   5 | 
+   6 | <div class="action-bar space-y-3 xs:space-y-0">
+   7 | 	<Timer />
+   8 | 
+   9 | 	<Actions />
+  10 | </div>
+  11 | 
+  12 | <style>
+  13 | 	.action-bar {
+  14 | 		@apply flex flex-col flex-wrap justify-between pb-5;
+  15 | 	}
+  16 | 
+  17 | 	@screen xs {
+  18 | 		.action-bar {
+  19 | 			@apply flex-row;
+  20 | 		}
+  21 | 	}
+  22 | </style>
+
+============================================================
+文件: Controls\ActionBar\Timer.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { timer } from '@sudoku/stores/timer';
+   3 | 	import { pauseGame, resumeGame } from '@sudoku/game';
+   4 | 	import { gamePaused } from '@sudoku/stores/game';
+   5 | 	import { settings } from '@sudoku/stores/settings';
+   6 | </script>
+   7 | 
+   8 | <div class="timer-container">
+   9 | 	<button class="btn btn-round" on:click={() => $gamePaused ? resumeGame() : pauseGame()} title="{$gamePaused ? 'Resume Game' : 'Pause Game'}">
+  10 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  11 | 			{#if $gamePaused}
+  12 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.19 9.61L9.01 3.48A2.87 2.87 0 004.54 5.88v12.25a2.87 2.87 0 004.47 2.39l9.18-6.12a2.87 2.87 0 000-4.78v0z" />
+  13 | 			{:else}
+  14 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3v18M18 3v18" />
+  15 | 			{/if}
+  16 | 		</svg>
+  17 | 	</button>
+  18 | 
+  19 | 	{#if $settings.displayTimer}
+  20 | 		<span class="timer-text" title="Time">{$timer}</span>
+  21 | 	{/if}
+  22 | </div>
+  23 | 
+  24 | <style>
+  25 | 	.timer-container {
+  26 | 		@apply flex items-center bg-gray-300 rounded-full self-start;
+  27 | 	}
+  28 | 
+  29 | 	.timer-text {
+  30 | 		@apply px-4 text-2xl;
+  31 | 	}
+  32 | </style>
+
+============================================================
+文件: Header\Buttons.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { modal } from '@sudoku/stores/modal';
+   3 | 	import { pauseGame, resumeGame } from '@sudoku/game';
+   4 | 
+   5 | 	function handleShareButton() {
+   6 | 		pauseGame();
+   7 | 		modal.show('share', { onHide: resumeGame });
+   8 | 	}
+   9 | 
+  10 | 	function handleSettingsButton() {
+  11 | 		pauseGame();
+  12 | 		modal.show('settings', { onHide: resumeGame });
+  13 | 	}
+  14 | </script>
+  15 | 
+  16 | <div class="flex justify-evenly space-x-3">
+  17 | 
+  18 | 	<button class="btn btn-header" title="Share this Sudoku puzzle" on:click={handleShareButton}>
+  19 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  20 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+  21 | 		</svg>
+  22 | 	</button>
+  23 | 
+  24 | 	<button class="btn btn-header" title="Open Settings" on:click={handleSettingsButton}>
+  25 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  26 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+  27 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  28 | 		</svg>
+  29 | 	</button>
+  30 | 
+  31 | </div>
+  32 | 
+  33 | <style>
+  34 | 	.btn-header {
+  35 | 		@apply bg-white bg-opacity-0 transition-opacity p-3;
+  36 | 	}
+  37 | 
+  38 | 	.btn-header:hover {
+  39 | 		@apply bg-opacity-25;
+  40 | 	}
+  41 | 
+  42 | 	.btn-header:active {
+  43 | 		@apply bg-opacity-50;
+  44 | 	}
+  45 | 
+  46 | 	.btn-header:focus {
+  47 | 		@apply shadow-outline-inverse;
+  48 | 	}
+  49 | </style>
+
+============================================================
+文件: Header\Dropdown.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import game from '@sudoku/game';
+   3 | 	import { validateSencode } from '@sudoku/sencode';
+   4 | 	import { modal } from '@sudoku/stores/modal';
+   5 | 	import { slide, fade } from 'svelte/transition';
+   6 | 	import { DIFFICULTIES, DROPDOWN_DURATION, DIFFICULTY_CUSTOM } from '@sudoku/constants';
+   7 | 	import { difficulty } from '@sudoku/stores/difficulty';
+   8 | 
+   9 | 	let dropdownVisible = false;
+  10 | 
+  11 | 	function handleDifficulty(difficultyValue) {
+  12 | 		dropdownVisible = false;
+  13 | 		game.pause();
+  14 | 
+  15 | 		modal.show('confirm', {
+  16 | 			title: 'New Game',
+  17 | 			text: 'Start new game with difficulty "' + DIFFICULTIES[difficultyValue] + '"?',
+  18 | 			button: 'Continue',
+  19 | 			onHide: game.resume,
+  20 | 			callback: () => {
+  21 | 				game.startNew(difficultyValue);
+  22 | 			},
+  23 | 		});
+  24 | 	}
+  25 | 
+  26 | 	function handleCreateOwn() {
+  27 | 		dropdownVisible = false;
+  28 | 		game.pause();
+  29 | 
+  30 | 		modal.show('confirm', {
+  31 | 			title: 'Create Own',
+  32 | 			text: 'Switch to the creator mode to create your own Sudoku puzzle?',
+  33 | 			button: 'Continue',
+  34 | 			onHide: game.resume,
+  35 | 			callback: () => {
+  36 | 				//game.startCreatorMode();
+  37 | 			},
+  38 | 		});
+  39 | 	}
+  40 | 
+  41 | 	function handleEnterCode() {
+  42 | 		dropdownVisible = false;
+  43 | 		game.pause();
+  44 | 
+  45 | 		modal.show('prompt', {
+  46 | 			title: 'Enter Code',
+  47 | 			text: 'Please enter the code of the Sudoku puzzle you want to play:',
+  48 | 			fontMono: true,
+  49 | 			button: 'Start',
+  50 | 			onHide: game.resume,
+  51 | 			callback: (value) => {
+  52 | 				game.startCustom(value);
+  53 | 			},
+  54 | 			validate: validateSencode
+  55 | 		});
+  56 | 	}
+  57 | 
+  58 | 	function showDropdown() {
+  59 | 		dropdownVisible = true;
+  60 | 		game.pause();
+  61 | 	}
+  62 | 
+  63 | 	function hideDropdown() {
+  64 | 		dropdownVisible = false;
+  65 | 		setTimeout(game.resume, DROPDOWN_DURATION);
+  66 | 	}
+  67 | </script>
+  68 | 
+  69 | <div class="dropdown">
+  70 | 	<button class="dropdown-button" on:click={dropdownVisible ? hideDropdown : showDropdown} title="{dropdownVisible ? 'Close' : 'Open'} Menu">
+  71 | 		<svg class="icon-outline mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  72 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h12" />
+  73 | 		</svg>
+  74 | 
+  75 | 		<span class="text-2xl tracking-wider">{$difficulty === DIFFICULTY_CUSTOM ? 'Custom' : DIFFICULTIES[$difficulty]}</span>
+  76 | 	</button>
+  77 | 
+  78 | 	{#if dropdownVisible}
+  79 | 		<button transition:fade={{duration: DROPDOWN_DURATION}} class="dropdown-overlay" on:click={hideDropdown} tabindex="-1"></button>
+  80 | 
+  81 | 		<div transition:slide={{duration: DROPDOWN_DURATION}} class="dropdown-menu">
+  82 | 			{#each Object.entries(DIFFICULTIES) as [difficultyValue, difficultyLabel]}
+  83 | 				<a class="dropdown-item" on:click|preventDefault={() => handleDifficulty(difficultyValue)} href="/difficulty-{difficultyValue}" title="Set difficulty to '{difficultyLabel}'">
+  84 | 					<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+  85 | 						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+  86 | 					</svg>
+  87 | 
+  88 | 					<span class="align-middle">{difficultyLabel}</span>
+  89 | 				</a>
+  90 | 			{/each}
+  91 | 
+  92 | 			<hr class="my-1">
+  93 | 
+  94 | 			<a class="dropdown-item" on:click|preventDefault={handleCreateOwn} href="/create" title="Create your own Sudoku puzzle">
+  95 | 				<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+  96 | 					<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+  97 | 				</svg>
+  98 | 
+  99 | 				<span class="align-middle">Create Own</span>
+ 100 | 			</a>
+ 101 | 			<a class="dropdown-item" on:click|preventDefault={handleEnterCode} href="/enter-code" title="Enter a Sudoku puzzle code from a friend">
+ 102 | 				<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+ 103 | 					<path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+ 104 | 					<path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+ 105 | 				</svg>
+ 106 | 
+ 107 | 				<span class="align-middle">Enter Code</span>
+ 108 | 			</a>
+ 109 | 		</div>
+ 110 | 	{/if}
+ 111 | </div>
+ 112 | 
+ 113 | <style>
+ 114 | 	.dropdown {
+ 115 | 		@apply relative;
+ 116 | 	}
+ 117 | 
+ 118 | 	.dropdown-button {
+ 119 | 		@apply relative z-30 block flex outline-none items-center;
+ 120 | 	}
+ 121 | 
+ 122 | 	.dropdown-overlay {
+ 123 | 		@apply fixed z-20 inset-0 h-full w-full bg-black bg-opacity-50 outline-none cursor-default;
+ 124 | 	}
+ 125 | 
+ 126 | 	.dropdown-menu {
+ 127 | 		@apply absolute z-30 left-0 mt-2 py-2 w-48 bg-white rounded-lg shadow-xl;
+ 128 | 	}
+ 129 | 
+ 130 | 
+ 131 | 	.dropdown-item {
+ 132 | 		@apply block px-4 py-2 text-gray-800 transition-colors duration-100 text-lg tracking-wide font-semibold;
+ 133 | 	}
+ 134 | 
+ 135 | 	.dropdown-item:hover {
+ 136 | 		@apply bg-primary text-white;
+ 137 | 	}
+ 138 | 
+ 139 | 	.dropdown-item:active {
+ 140 | 		@apply bg-primary-dark;
+ 141 | 	}
+ 142 | </style>
+
+============================================================
+文件: Header\index.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import Buttons from './Buttons.svelte';
+   3 | 	import Dropdown from './Dropdown.svelte';
+   4 | </script>
+   5 | 
+   6 | <div class="px-4 py-4 flex justify-center text-white">
+   7 | 	<div class="w-full max-w-xl">
+   8 | 
+   9 | 		<nav class="flex flex-wrap items-center justify-between">
+  10 | 			<Dropdown />
+  11 | 
+  12 | 			<Buttons />
+  13 | 		</nav>
+  14 | 
+  15 | 	</div>
+  16 | </div>
+
+============================================================
+文件: Modal\index.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { fade, scale } from 'svelte/transition';
+   3 | 	import { modal, modalData } from '@sudoku/stores/modal';
+   4 | 	import { MODAL_NONE, MODAL_DURATION } from '@sudoku/constants';
+   5 | 	import types from './Types';
+   6 | 
+   7 | 	const MODALS_DISABLED_OVERLAY = ['welcome', 'gameover'];
+   8 | 
+   9 | 	function handleOverlayClick() {
+  10 | 		if (!MODALS_DISABLED_OVERLAY.includes($modal)) {
+  11 | 			modal.hide();
+  12 | 		}
+  13 | 	}
+  14 | </script>
+  15 | 
+  16 | {#if $modal !== MODAL_NONE}
+  17 | 	<div class="modal">
+  18 | 		<button transition:fade={{duration: MODAL_DURATION}} class="modal-overlay" on:click={handleOverlayClick} tabindex="-1"></button>
+  19 | 
+  20 | 		<div transition:scale={{duration: MODAL_DURATION}} class="modal-container">
+  21 | 			<div class="modal-content">
+  22 | 				<svelte:component this={types[$modal]} data={$modalData} hideModal={modal.hide} />
+  23 | 			</div>
+  24 | 		</div>
+  25 | 	</div>
+  26 | {/if}
+  27 | 
+  28 | <style>
+  29 | 	.modal {
+  30 | 		@apply fixed z-40 w-full h-full top-0 left-0 flex items-center justify-center;
+  31 | 	}
+  32 | 
+  33 | 	.modal-overlay {
+  34 | 		@apply fixed z-40 inset-0 h-full w-full bg-black bg-opacity-50 outline-none cursor-default;
+  35 | 	}
+  36 | 
+  37 | 	.modal-container {
+  38 | 		@apply z-50 bg-gray-custom w-11/12 mx-auto rounded-xl shadow-lg overflow-y-auto;
+  39 | 	}
+  40 | 
+  41 | 	.modal-content {
+  42 | 		@apply flex flex-col p-6 text-left;
+  43 | 	}
+  44 | 
+  45 | 
+  46 | 	@screen md {
+  47 | 		.modal-container {
+  48 | 			@apply max-w-md;
+  49 | 		}
+  50 | 	}
+  51 | </style>
+
+============================================================
+文件: Modal\Types\Confirm.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	export let data = {};
+   3 | 	export let hideModal;
+   4 | 
+   5 | 	function handleContinue() {
+   6 | 		if (data.callback) data.callback();
+   7 | 		hideModal();
+   8 | 	}
+   9 | </script>
+  10 | 
+  11 | <h1 class="text-3xl font-semibold mb-5 leading-none">{data.title || 'Confirm'}</h1>
+  12 | 
+  13 | {#if data.text}
+  14 | 	<p class="text-lg mb-5">{data.text}</p>
+  15 | {/if}
+  16 | 
+  17 | <div class="flex justify-end">
+  18 | 	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+  19 | 	<button class="btn btn-small btn-primary" on:click={handleContinue}>{data.button || 'Okay'}</button>
+  20 | </div>
+
+============================================================
+文件: Modal\Types\GameOver.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { DIFFICULTIES, DIFFICULTY_CUSTOM, GAME_OVER_CELEBRATIONS } from '@sudoku/constants';
+   3 | 	import { resumeGame } from '@sudoku/game';
+   4 | 	import { modal } from '@sudoku/stores/modal';
+   5 | 	import { timer } from '@sudoku/stores/timer';
+   6 | 	import { difficulty } from '@sudoku/stores/difficulty';
+   7 | 	import { usedHints } from '@sudoku/stores/hints';
+   8 | 
+   9 | 	const gameOverCelebration = GAME_OVER_CELEBRATIONS[Math.floor(Math.random() * GAME_OVER_CELEBRATIONS.length)];
+  10 | 
+  11 | 	function handleShare() {
+  12 | 		modal.show('share', { onHide: () => modal.show('gameover'), onHideReplace: true });
+  13 | 	}
+  14 | 
+  15 | 	function handleNewGame() {
+  16 | 		modal.show('welcome', { onHide: resumeGame });
+  17 | 	}
+  18 | </script>
+  19 | 
+  20 | <div class="flex flex-col text-center items-center">
+  21 | 	<svg class="h-32 w-32 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  22 | 		<path d="M1 6.417c0-1.013.822-1.833 1.834-1.833 1.215 0 2.104 1.167 1.763 2.329-.559 1.915 5.827 3.731 6.771-1.471.239-1.323-.021-1.67-.668-2.321-.329-.329-.534-.783-.534-1.287 0-1.013.822-1.834 1.834-1.834 1.014 0 1.833.821 1.833 1.833 0 .504-.204.958-.533 1.287-.646.65-.905.998-.666 2.321.941 5.2 7.33 3.387 6.77 1.471-.339-1.162.548-2.329 1.764-2.329 1.012 0 1.832.821 1.832 1.834 0 1.118-.992 1.97-2.084 1.816-1.32-.187-3.03 4.554-3.417 6.716-1.765-.615-3.618-.942-5.493-.949-1.875.006-3.74.334-5.504.949-.388-2.162-2.098-6.903-3.418-6.717-1.092.155-2.084-.697-2.084-1.815zm-1 14.583h2.359l.566 3c.613-1.012 1.388-1.912 2.277-2.68l-2.342-3.335c-1.089.879-2.053 1.848-2.86 3.015zm24 0h-2.359l-.566 3c-.613-1.012-1.388-1.912-2.277-2.68l2.343-3.335c1.088.879 2.052 1.848 2.859 3.015zm-12-4.998c-2.845.009-5.491.825-7.757 2.211l2.334 3.322c1.603-.924 3.448-1.464 5.423-1.473 1.975.009 3.82.549 5.423 1.473l2.334-3.322c-2.266-1.386-4.912-2.202-7.757-2.211zm-3.022 3.498l-.65-.348-.651.348.131-.726-.531-.511.729-.101.321-.662.322.663.729.101-.53.511.13.725zm3.672-.5l-.65-.348-.65.348.131-.726-.531-.511.729-.101.321-.662.322.663.729.101-.53.511.129.725zm3.718.5l-.65-.348-.65.348.131-.726-.531-.511.729-.101.322-.663.322.663.729.101-.53.511.128.726z" />
+  23 | 	</svg>
+  24 | 
+  25 | 	<h1 class="text-4xl font-semibold">{gameOverCelebration}</h1>
+  26 | </div>
+  27 | 
+  28 | <div class="game-data space-y-2">
+  29 | 	<div class="game-data-item">
+  30 | 		<div class="item-icon">
+  31 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  32 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  33 | 			</svg>
+  34 | 		</div>
+  35 | 
+  36 | 		<div class="item-data">
+  37 | 			<div class="item-data-label">
+  38 | 				Time:
+  39 | 			</div>
+  40 | 
+  41 | 			<div class="item-data-value">
+  42 | 				{$timer}
+  43 | 			</div>
+  44 | 		</div>
+  45 | 	</div>
+  46 | 
+  47 | 	<div class="game-data-item">
+  48 | 		<div class="item-icon">
+  49 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  50 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  51 | 			</svg>
+  52 | 		</div>
+  53 | 
+  54 | 		<div class="item-data">
+  55 | 			<div class="item-data-label">
+  56 | 				Difficulty:
+  57 | 			</div>
+  58 | 
+  59 | 			<div class="item-data-value">
+  60 | 				{$difficulty === DIFFICULTY_CUSTOM ? 'Custom' : DIFFICULTIES[$difficulty]}
+  61 | 			</div>
+  62 | 		</div>
+  63 | 	</div>
+  64 | 
+  65 | 	<div class="game-data-item">
+  66 | 		<div class="item-icon">
+  67 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  68 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+  69 | 			</svg>
+  70 | 		</div>
+  71 | 
+  72 | 		<div class="item-data">
+  73 | 			<div class="item-data-label">
+  74 | 				Hints used:
+  75 | 			</div>
+  76 | 
+  77 | 			<div class="item-data-value">
+  78 | 				{$usedHints}
+  79 | 			</div>
+  80 | 		</div>
+  81 | 	</div>
+  82 | </div>
+  83 | 
+  84 | <button class="btn btn-small w-full mb-2" on:click={handleShare}>Share this Sudoku puzzle</button>
+  85 | <button class="btn btn-small btn-primary w-full" on:click={handleNewGame}>New Game</button>
+  86 | 
+  87 | <style>
+  88 | 	.game-data {
+  89 | 		@apply mt-6 mb-10 w-full text-xl;
+  90 | 	}
+  91 | 
+  92 | 	.game-data-item {
+  93 | 		@apply flex;
+  94 | 	}
+  95 | 
+  96 | 	.item-icon {
+  97 | 		@apply flex-auto mr-3;
+  98 | 	}
+  99 | 
+ 100 | 	.item-data {
+ 101 | 		@apply flex-grow w-full flex flex-wrap border-b-2 border-gray-300 pb-1;
+ 102 | 	}
+ 103 | 
+ 104 | 	.item-data-label {
+ 105 | 		@apply w-1/2 text-left;
+ 106 | 	}
+ 107 | 
+ 108 | 	.item-data-value {
+ 109 | 		@apply w-1/2 text-right;
+ 110 | 	}
+ 111 | </style>
+
+============================================================
+文件: Modal\Types\index.js
+------------------------------------------------------------
+   1 | import share from './Share.svelte';
+   2 | import qrcode from './QRCode.svelte';
+   3 | import settings from './Settings.svelte';
+   4 | import confirm from './Confirm.svelte';
+   5 | import prompt from './Prompt.svelte';
+   6 | import welcome from './Welcome.svelte';
+   7 | import gameover from './GameOver.svelte';
+   8 | 
+   9 | export default {
+  10 | 	share,
+  11 | 	qrcode,
+  12 | 	settings,
+  13 | 	confirm,
+  14 | 	prompt,
+  15 | 	welcome,
+  16 | 	gameover
+  17 | }
+
+============================================================
+文件: Modal\Types\Prompt.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	export let data = {};
+   3 | 	export let hideModal;
+   4 | 
+   5 | 	let value = '';
+   6 | 
+   7 | 	function handleButton() {
+   8 | 		if (data.callback) data.callback(value);
+   9 | 		hideModal();
+  10 | 	}
+  11 | </script>
+  12 | 
+  13 | <h1 class="text-3xl font-semibold mb-5 leading-none">{data.title || 'Please enter something'}</h1>
+  14 | 
+  15 | {#if data.text}
+  16 | 	<label for="prompt-input" class="text-lg mb-4">{data.text}</label>
+  17 | {/if}
+  18 | 
+  19 | <input class="input mb-5" id="prompt-input" name="prompt-input" class:font-mono={data.fontMono} bind:value type="text">
+  20 | 
+  21 | <div class="flex justify-end">
+  22 | 	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+  23 | 	<button class="btn btn-small btn-primary" disabled={data.validate ? !data.validate(value) : false} on:click={handleButton}>{data.button || 'Okay'}</button>
+  24 | </div>
+
+============================================================
+文件: Modal\Types\QRCode.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { modal } from '@sudoku/stores/modal';
+   3 | 
+   4 | 	export let data = {};
+   5 | 
+   6 | 	const image = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&charset-source=UTF-8&charset-target=UTF-8&ecc=L&color=000&bgcolor=f7f9fc&margin=8&qzone=0&format=png&data=' + data.encodedLink;
+   7 | 
+   8 | 	function select(element) {
+   9 | 		element.select();
+  10 | 		element.setSelectionRange(0, element.value.length);
+  11 | 	}
+  12 | </script>
+  13 | 
+  14 | <img class="h-full w-full" src={image} />
+  15 | 
+  16 | <div class="mt-3">
+  17 | 	<button class="btn btn-small w-full" on:click={() => modal.show('share', data)}>
+  18 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  19 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+  20 | 		</svg>
+  21 | 
+  22 | 		<span>Back</span>
+  23 | 	</button>
+  24 | </div>
+
+============================================================
+文件: Modal\Types\Settings.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { slide } from 'svelte/transition';
+   3 | 	import Switch from '../../Utils/Switch.svelte';
+   4 | 	import { settings as settingsStore } from '@sudoku/stores/settings';
+   5 | 	import { MAX_HINTS } from '@sudoku/constants';
+   6 | 
+   7 | 	export let data = {};
+   8 | 	export let hideModal;
+   9 | 
+  10 | 	let settings = { ...$settingsStore };
+  11 | 
+  12 | 	let hintsLimited = settings.hintsLimited;
+  13 | 
+  14 | 	function handleSave() {
+  15 | 		settings.hintsLimited = hintsLimited;
+  16 | 
+  17 | 		if (settings.hints < 0) settings.hints = 0;
+  18 | 		if (settings.hints > MAX_HINTS) settings.hints = MAX_HINTS;
+  19 | 
+  20 | 		settingsStore.set(settings);
+  21 | 		hideModal();
+  22 | 	}
+  23 | </script>
+  24 | 
+  25 | <h1 class="text-3xl font-semibold mb-6 leading-none">Settings</h1>
+  26 | 
+  27 | <!--
+  28 | 
+  29 | - Display Timer while playing
+  30 | - Highlight cells in same Row/Column/Box
+  31 | - Highlight matching digits
+  32 | - Highlight conflicting digits
+  33 | -
+  34 | 
+  35 | -->
+  36 | 
+  37 | <div class="flex flex-col mb-6 space-y-3">
+  38 | 	<!--<Switch bind:checked={settings.darkTheme} text="Enable dark theme" id="dark-theme" />-->
+  39 | 	<Switch bind:checked={settings.displayTimer} text="Display timer while playing" id="display-timer" />
+  40 | 
+  41 | 	<Switch bind:checked={hintsLimited} text="Limit the number of hints available" id="hints-limited" />
+  42 | 	{#if hintsLimited}
+  43 | 		<div transition:slide class="inline-flex items-center">
+  44 | 			<label for="hints" class="flex-grow text-lg">Number of available hints</label>
+  45 | 
+  46 | 			<input bind:value={settings.hints} class="number-input" id="hints" name="hints" type="number" min="0" max="81" />
+  47 | 		</div>
+  48 | 	{/if}
+  49 | 
+  50 | 	<Switch bind:checked={settings.highlightCells} text="Highlight cells in same row/column/box" id="highlight-cells" />
+  51 | 	<Switch bind:checked={settings.highlightSame} text="Highlight cells with the same number" id="highlight-matching" />
+  52 | 	<Switch bind:checked={settings.highlightConflicting} text="Highlight conflicting numbers" id="highlight-conflicting" />
+  53 | </div>
+  54 | 
+  55 | <div class="flex justify-end">
+  56 | 	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+  57 | 	<button class="btn btn-small btn-primary" on:click={handleSave}>Save</button>
+  58 | </div>
+  59 | 
+  60 | <style>
+  61 | 	.number-input {
+  62 | 		@apply w-12 h-8 px-1 border-2 rounded-lg shadow-inner text-xl text-center leading-none;
+  63 | 	}
+  64 | 
+  65 | 	.number-input:focus {
+  66 | 		@apply outline-none shadow-outline;
+  67 | 	}
+  68 | </style>
+
+============================================================
+文件: Modal\Types\Share.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { onMount } from 'svelte';
+   3 | 	import { BASE_URL } from '@sudoku/constants';
+   4 | 	import { modal } from '@sudoku/stores/modal';
+   5 | 	import { grid } from '@sudoku/stores/grid';
+   6 | 	import Clipboard from '../../Utils/Clipboard.svelte';
+   7 | 
+   8 | 	export let data = {};
+   9 | 	export let hideModal;
+  10 | 
+  11 | 	const sencode = grid.getSencode($grid);
+  12 | 
+  13 | 	const link = BASE_URL + '#' + sencode;
+  14 | 	const encodedLink = encodeURIComponent(link);
+  15 | 	const facebookLink = 'https://www.facebook.com/sharer/sharer.php?u=' + encodedLink;
+  16 | 	const twitterLink = 'https://twitter.com/intent/tweet?text=Check%20out%20this%20Sudoku%20puzzle!&url=' + encodedLink;
+  17 | 	const mailToLink = 'mailto:?subject=A%20Sudoku%20puzzle%20for%20you&body=Here%27s%20a%20link%20to%20a%20Sudoku%20puzzle%20on%20sudoku.jonasgeiler.com%3A%0A%0A' + encodedLink;
+  18 | 
+  19 | 	let copyText;
+  20 | 
+  21 | 	function select(element) {
+  22 | 		element.select();
+  23 | 		element.setSelectionRange(0, element.value.length);
+  24 | 	}
+  25 | 
+  26 | 	onMount(() => {
+  27 | 		let canShare = false;
+  28 | 		const shareData = {
+  29 | 			url: link,
+  30 | 			title: 'Sudoku',
+  31 | 			text: 'Create & play Sudoku puzzles for free online on sudoku.jonasgeiler.com!'
+  32 | 		};
+  33 | 
+  34 | 		if ('share' in navigator) {
+  35 | 			canShare = true;
+  36 | 		}
+  37 | 
+  38 | 		if ('canShare' in navigator) {
+  39 | 			canShare = navigator.canShare(shareData);
+  40 | 		}
+  41 | 
+  42 | 		if (canShare) {
+  43 | 			navigator.share(shareData);
+  44 | 		}
+  45 | 	});
+  46 | </script>
+  47 | 
+  48 | <div class="flex justify-between items-center mb-6">
+  49 | 	<h1 class="text-3xl font-semibold leading-none">Share Sudoku</h1>
+  50 | 
+  51 | 	<div class="cursor-pointer" on:click={hideModal}>
+  52 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  53 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+  54 | 		</svg>
+  55 | 	</div>
+  56 | </div>
+  57 | 
+  58 | <div class="code-container">
+  59 | 	<input class="input code-field" type="text" readonly value={sencode} on:click={e => select(e.target)}>
+  60 | 
+  61 | 	<button class="btn btn-copy" on:click={copyText(sencode)}>
+  62 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  63 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+  64 | 		</svg>
+  65 | 	</button>
+  66 | </div>
+  67 | 
+  68 | <hr class="my-8" />
+  69 | 
+  70 | <div class="flex flex-col space-y-2">
+  71 | 
+  72 | 	<a href={link} class="btn btn-small" on:click|preventDefault={copyText(link)}>
+  73 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  74 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+  75 | 		</svg>
+  76 | 
+  77 | 		<span>Copy Link</span>
+  78 | 	</a>
+  79 | 
+  80 | 	<a href={twitterLink} target="_blank" class="btn btn-share btn-share-twitter btn-small">
+  81 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+  82 | 			<path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+  83 | 		</svg>
+  84 | 
+  85 | 		<span>Share on Twitter</span>
+  86 | 	</a>
+  87 | 
+  88 | 	<a href={facebookLink} target="_blank" class="btn btn-share btn-share-facebook btn-small">
+  89 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+  90 | 			<path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
+  91 | 		</svg>
+  92 | 
+  93 | 		<span>Share on Facebook</span>
+  94 | 	</a>
+  95 | 
+  96 | 	<a href={mailToLink} target="_blank" class="btn btn-small">
+  97 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  98 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  99 | 		</svg>
+ 100 | 
+ 101 | 		<span>Share by Email</span>
+ 102 | 	</a>
+ 103 | 
+ 104 | 	<button class="btn btn-small" on:click={() => modal.show('qrcode', { ...data, encodedLink })}>
+ 105 | 		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 106 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+ 107 | 		</svg>
+ 108 | 
+ 109 | 		<span>Share QR Code</span>
+ 110 | 	</button>
+ 111 | </div>
+ 112 | 
+ 113 | <Clipboard bind:copyText />
+ 114 | 
+ 115 | <style>
+ 116 | 	.code-container {
+ 117 | 		@apply flex flex-col;
+ 118 | 	}
+ 119 | 
+ 120 | 	.code-field {
+ 121 | 		@apply rounded-b-none font-mono text-center;
+ 122 | 	}
+ 123 | 
+ 124 | 	.btn-copy {
+ 125 | 		@apply p-3 rounded-t-none;
+ 126 | 	}
+ 127 | 
+ 128 | 	@screen sm {
+ 129 | 		.code-container {
+ 130 | 			@apply flex-row;
+ 131 | 		}
+ 132 | 
+ 133 | 		.code-field {
+ 134 | 			@apply flex-grow rounded-bl-xl rounded-r-none;
+ 135 | 		}
+ 136 | 
+ 137 | 		.btn-copy {
+ 138 | 			@apply rounded-tr-xl rounded-l-none;
+ 139 | 		}
+ 140 | 	}
+ 141 | 
+ 142 | 
+ 143 | 	.btn-share {
+ 144 | 		@apply text-white border-none;
+ 145 | 	}
+ 146 | 
+ 147 | 	.btn-share-twitter {
+ 148 | 		background-color: #1da1f2;
+ 149 | 	}
+ 150 | 
+ 151 | 	.btn-share-twitter:hover {
+ 152 | 		background-color: #1a91da;
+ 153 | 	}
+ 154 | 
+ 155 | 	.btn-share-twitter:active {
+ 156 | 		background-color: #1781c2;
+ 157 | 	}
+ 158 | 
+ 159 | 	.btn-share-facebook {
+ 160 | 		background-color: #1877f2;
+ 161 | 	}
+ 162 | 
+ 163 | 	.btn-share-facebook:hover {
+ 164 | 		background-color: #166bda;
+ 165 | 	}
+ 166 | 
+ 167 | 	.btn-share-facebook:active {
+ 168 | 		background-color: #135fc2;
+ 169 | 	}
+ 170 | </style>
+
+============================================================
+文件: Modal\Types\Welcome.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	import { difficulty as difficultyStore } from '@sudoku/stores/difficulty';
+   3 | 	import { startNew, startCustom } from '@sudoku/game';
+   4 | 	import { validateSencode } from '@sudoku/sencode';
+   5 | 	import { DIFFICULTIES } from '@sudoku/constants';
+   6 | 
+   7 | 	export let data = {};
+   8 | 	export let hideModal;
+   9 | 
+  10 | 	let difficulty = $difficultyStore;
+  11 | 	let sencode = data.sencode || '';
+  12 | 
+  13 | 	$: enteredSencode = sencode.trim().length !== 0;
+  14 | 	$: buttonDisabled = enteredSencode ? !validateSencode(sencode) : !DIFFICULTIES.hasOwnProperty(difficulty);
+  15 | 
+  16 | 	function handleStart() {
+  17 | 		if (validateSencode(sencode)) {
+  18 | 			startCustom(sencode);
+  19 | 		} else {
+  20 | 			startNew(difficulty);
+  21 | 		}
+  22 | 
+  23 | 		hideModal();
+  24 | 	}
+  25 | </script>
+  26 | 
+  27 | <h1 class="text-3xl font-semibold mb-6 leading-none">Welcome!</h1>
+  28 | 
+  29 | {#if data.sencode}
+  30 | 	<div class="p-3 text-lg rounded bg-primary bg-opacity-25 border-l-8 border-primary border-opacity-75 mb-4">
+  31 | 		Someone shared a Sudoku puzzle with you!<br>Just click start if you want to play it
+  32 | 	</div>
+  33 | {/if}
+  34 | 
+  35 | <label for="difficulty" class="text-lg mb-3">To start a game, choose a difficulty:</label>
+  36 | 
+  37 | <div class="inline-block relative mb-6">
+  38 | 	<select id="difficulty" class="btn btn-small w-full appearance-none leading-normal" bind:value={difficulty} disabled={enteredSencode}>
+  39 | 		{#each Object.entries(DIFFICULTIES) as [difficultyValue, difficultyLabel]}
+  40 | 			<option value={difficultyValue}>{difficultyLabel}</option>
+  41 | 		{/each}
+  42 | 	</select>
+  43 | 
+  44 | 	<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+  45 | 		<svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  46 | 			<path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+  47 | 		</svg>
+  48 | 	</div>
+  49 | </div>
+  50 | 
+  51 | <label for="sencode" class="text-lg mb-3">Or, if you have a code for a custom Sudoku puzzle, enter it here:</label>
+  52 | 
+  53 | <input id="sencode" class="input font-mono mb-5" bind:value={sencode} type="text">
+  54 | 
+  55 | <div class="flex justify-end">
+  56 | 	<button class="btn btn-small btn-primary" disabled={buttonDisabled} on:click={handleStart}>Start</button>
+  57 | </div>
+
+============================================================
+文件: Utils\Clipboard.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	let textArea;
+   3 | 
+   4 | 	export const copyText = function (text) {
+   5 | 		if (navigator.clipboard) return navigator.clipboard.writeText(text);
+   6 | 
+   7 | 		textArea.value = text;
+   8 | 
+   9 | 		const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
+  10 | 
+  11 | 		textArea.select();
+  12 | 
+  13 | 		let success = false;
+  14 | 		try {
+  15 | 			success = document.execCommand('copy');
+  16 | 		} catch (e) {
+  17 | 		}
+  18 | 
+  19 | 		if (selected) {
+  20 | 			document.getSelection().removeAllRanges();
+  21 | 			document.getSelection().addRange(selected);
+  22 | 		}
+  23 | 
+  24 | 		return success
+  25 | 				? Promise.resolve()
+  26 | 				: Promise.reject();
+  27 | 	};
+  28 | </script>
+  29 | 
+  30 | <textarea readonly="readonly" style="position: absolute; left: -9999px;" bind:this={textArea}></textarea>
+
+============================================================
+文件: Utils\Switch.svelte
+------------------------------------------------------------
+   1 | <script>
+   2 | 	export let id = '';
+   3 | 	export let text = '';
+   4 | 	export let checked = false;
+   5 | 	export let disabled = false;
+   6 | </script>
+   7 | 
+   8 | <label for="{id}" class="inline-flex items-center">
+   9 | 	<span class="flex-grow cursor-pointer text-lg">{text}</span>
+  10 | 
+  11 | 	<span class="switch">
+  12 | 		<input {id} name="{id}" type="checkbox" class="sr-only" {disabled} bind:checked />
+  13 | 		<span class="track"></span>
+  14 | 		<span class="thumb"></span>
+  15 | 	</span>
+  16 | </label>
+  17 | 
+  18 | <style>
+  19 | 	.switch {
+  20 | 		@apply inline-block relative align-middle cursor-pointer select-none bg-transparent;
+  21 | 	}
+  22 | 
+  23 | 	.track {
+  24 | 		@apply block w-12 h-6 bg-gray-600 rounded-full shadow-inner;
+  25 | 	}
+  26 | 
+  27 | 	.thumb {
+  28 | 		@apply block transition-all duration-300 ease-in-out absolute top-0 left-0 w-6 h-6 bg-white border-2 border-gray-600 rounded-full;
+  29 | 	}
+  30 | 
+  31 | 	input[type='checkbox']:checked ~ .thumb {
+  32 | 		@apply transform translate-x-full border-primary;
+  33 | 	}
+  34 | 
+  35 | 	input[type='checkbox']:checked ~ .track {
+  36 | 		@apply transform transition-colors bg-primary;
+  37 | 	}
+  38 | 
+  39 | 	input[type='checkbox']:disabled ~ .track {
+  40 | 		@apply bg-gray-500;
+  41 | 	}
+  42 | 
+  43 | 	input[type='checkbox']:disabled ~ .thumb {
+  44 | 		@apply bg-gray-100 border-gray-500;
+  45 | 	}
+  46 | 
+  47 | 	input[type='checkbox']:focus + .track,
+  48 | 	input[type='checkbox']:active + .track {
+  49 | 		@apply outline-none shadow-outline;
+  50 | 	}
+  51 | </style>

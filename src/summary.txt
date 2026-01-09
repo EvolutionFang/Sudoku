@@ -1,0 +1,1439 @@
+=== App.svelte (SVELTE) ===
+<script>
+	import { onMount } from 'svelte';
+	import { validateSencode } from '@sudoku/sencode';
+	import game from '@sudoku/game';
+	import { modal } from '@sudoku/stores/modal';
+	import { gameWon } from '@sudoku/stores/game';
+	import Board from './components/Board/index.svelte';
+	import Controls from './components/Controls/index.svelte';
+	import Header from './components/Header/index.svelte';
+	import Modal from './components/Modal/index.svelte';
+
+	gameWon.subscribe(won => {
+		if (won) {
+			game.pause();
+			modal.show('gameover');
+		}
+	});
+
+	onMount(() => {
+		let hash = location.hash;
+
+		if (hash.startsWith('#')) {
+			hash = hash.slice(1);
+		}
+
+		let sencode;
+		if (validateSencode(hash)) {
+			sencode = hash;
+		}
+
+		modal.show('welcome', { onHide: game.resume, sencode });
+	});
+</script>
+
+<!-- Timer, Menu, etc. -->
+<header>
+	<Header />
+</header>
+
+<!-- Sudoku Field -->
+<section>
+	<Board />
+</section>
+
+<!-- Keyboard -->
+<footer>
+	<Controls />
+</footer>
+
+<Modal />
+
+<style global>
+	@import "./styles/global.css";
+</style>
+
+=== main.js (JAVASCRIPT) ===
+import App from './App.svelte';
+
+const app = new App({
+	target: document.getElementById('app')
+});
+
+export default app;
+
+
+// TODO: Warn when hint not possible
+// TODO: Undo/Redo
+// TODO: Import sudoku
+// TODO: Creator mode
+// TODO: Bug hunt
+// TODO: Announce
+
+=== components\Board\Candidates.svelte (SVELTE) ===
+<script>
+	import { CANDIDATE_COORDS } from '@sudoku/constants';
+
+	export let candidates = [];
+</script>
+
+<div class="candidate-grid">
+	{#each CANDIDATE_COORDS as [row, col], index}
+		<div class="candidate row-start-{row} col-start-{col}"
+		     class:invisible={!candidates.includes(index + 1)}
+		     class:visible={candidates.includes(index + 1)}>
+			{index + 1}
+		</div>
+	{/each}
+</div>
+
+<style>
+	.candidate-grid {
+		@apply grid h-full w-full p-1;
+	}
+
+	.candidate {
+		@apply h-full w-full row-end-auto col-end-auto leading-full;
+	}
+</style>
+
+=== components\Board\Cell.svelte (SVELTE) ===
+<script>
+	import Candidates from './Candidates.svelte';
+	import { fade } from 'svelte/transition';
+	import { SUDOKU_SIZE } from '@sudoku/constants';
+	import { cursor } from '@sudoku/stores/cursor';
+
+	export let value;
+	export let cellX;
+	export let cellY;
+	export let candidates;
+
+	export let disabled;
+	export let conflictingNumber;
+	export let userNumber;
+	export let selected;
+	export let sameArea;
+	export let sameNumber;
+
+	const borderRight = (cellX !== SUDOKU_SIZE && cellX % 3 !== 0);
+	const borderRightBold = (cellX !== SUDOKU_SIZE && cellX % 3 === 0);
+	const borderBottom = (cellY !== SUDOKU_SIZE && cellY % 3 !== 0);
+	const borderBottomBold = (cellY !== SUDOKU_SIZE && cellY % 3 === 0);
+</script>
+
+<div class="cell row-start-{cellY} col-start-{cellX}"
+     class:border-r={borderRight}
+     class:border-r-4={borderRightBold}
+     class:border-b={borderBottom}
+     class:border-b-4={borderBottomBold}>
+
+	{#if !disabled}
+		<div class="cell-inner"
+		     class:user-number={userNumber}
+		     class:selected={selected}
+		     class:same-area={sameArea}
+		     class:same-number={sameNumber}
+		     class:conflicting-number={conflictingNumber}>
+
+			<button class="cell-btn" on:click={cursor.set(cellX - 1, cellY - 1)}>
+				{#if candidates}
+					<Candidates {candidates} />
+				{:else}
+					<span class="cell-text">{value || ''}</span>
+				{/if}
+			</button>
+
+		</div>
+	{/if}
+
+</div>
+
+<style>
+	.cell {
+		@apply h-full w-full row-end-auto col-end-auto;
+	}
+
+	.cell-inner {
+		@apply relative h-full w-full text-gray-800;
+	}
+
+	.cell-btn {
+		@apply absolute inset-0 h-full w-full;
+	}
+
+	.cell-btn:focus {
+		@apply outline-none;
+	}
+
+	.cell-text {
+		@apply leading-full text-base;
+	}
+
+	@media (min-width: 300px) {
+		.cell-text {
+			@apply text-lg;
+		}
+	}
+
+	@media (min-width: 350px) {
+		.cell-text {
+			@apply text-xl;
+		}
+	}
+
+	@media (min-width: 400px) {
+		.cell-text {
+			@apply text-2xl;
+		}
+	}
+
+	@media (min-width: 500px) {
+		.cell-text {
+			@apply text-3xl;
+		}
+	}
+
+	@media (min-width: 600px) {
+		.cell-text {
+			@apply text-4xl;
+		}
+	}
+
+	.user-number {
+		@apply text-primary;
+	}
+
+	.selected {
+		@apply bg-primary text-white;
+	}
+
+	.same-area {
+		@apply bg-primary-lighter;
+	}
+
+	.same-number {
+		@apply bg-primary-light;
+	}
+
+	.conflicting-number {
+		@apply text-red-600;
+	}
+</style>
+
+=== components\Board\index.svelte (SVELTE) ===
+<script>
+	import { BOX_SIZE } from '@sudoku/constants';
+	import { gamePaused } from '@sudoku/stores/game';
+	import { grid, userGrid, invalidCells } from '@sudoku/stores/grid';
+	import { settings } from '@sudoku/stores/settings';
+	import { cursor } from '@sudoku/stores/cursor';
+	import { candidates } from '@sudoku/stores/candidates';
+	import Cell from './Cell.svelte';
+
+	function isSelected(cursorStore, x, y) {
+		return cursorStore.x === x && cursorStore.y === y;
+	}
+
+	function isSameArea(cursorStore, x, y) {
+		if (cursorStore.x === null && cursorStore.y === null) return false;
+		if (cursorStore.x === x || cursorStore.y === y) return true;
+
+		const cursorBoxX = Math.floor(cursorStore.x / BOX_SIZE);
+		const cursorBoxY = Math.floor(cursorStore.y / BOX_SIZE);
+		const cellBoxX = Math.floor(x / BOX_SIZE);
+		const cellBoxY = Math.floor(y / BOX_SIZE);
+		return (cursorBoxX === cellBoxX && cursorBoxY === cellBoxY);
+	}
+
+	function getValueAtCursor(gridStore, cursorStore) {
+		if (cursorStore.x === null && cursorStore.y === null) return null;
+
+		return gridStore[cursorStore.y][cursorStore.x];
+	}
+</script>
+
+<div class="board-padding relative z-10">
+	<div class="max-w-xl relative">
+		<div class="w-full" style="padding-top: 100%"></div>
+	</div>
+	<div class="board-padding absolute inset-0 flex justify-center">
+
+		<div class="bg-white shadow-2xl rounded-xl overflow-hidden w-full h-full max-w-xl grid" class:bg-gray-200={$gamePaused}>
+
+			{#each $userGrid as row, y}
+				{#each row as value, x}
+					<Cell {value}
+					      cellY={y + 1}
+					      cellX={x + 1}
+					      candidates={$candidates[x + ',' + y]}
+					      disabled={$gamePaused}
+					      selected={isSelected($cursor, x, y)}
+					      userNumber={$grid[y][x] === 0}
+					      sameArea={$settings.highlightCells && !isSelected($cursor, x, y) && isSameArea($cursor, x, y)}
+					      sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor($userGrid, $cursor) === value}
+					      conflictingNumber={$settings.highlightConflicting && $grid[y][x] === 0 && $invalidCells.includes(x + ',' + y)} />
+				{/each}
+			{/each}
+
+		</div>
+
+	</div>
+</div>
+
+<style>
+	.board-padding {
+		@apply px-4 pb-4;
+	}
+</style>
+
+=== components\Controls\index.svelte (SVELTE) ===
+<script>
+	import ActionBar from './ActionBar/index.svelte';
+	import Keyboard from './Keyboard.svelte';
+</script>
+
+<div class="px-4 pb-5 flex justify-center">
+	<div class="w-full max-w-xl">
+		<ActionBar />
+
+		<Keyboard />
+	</div>
+</div>
+
+=== components\Controls\Keyboard.svelte (SVELTE) ===
+<script>
+	import { userGrid } from '@sudoku/stores/grid';
+	import { cursor } from '@sudoku/stores/cursor';
+	import { notes } from '@sudoku/stores/notes';
+	import { candidates } from '@sudoku/stores/candidates';
+	import { getCandidateSet } from '@sudoku/strategies';
+
+	// TODO: Improve keyboardDisabled
+	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+	import { 
+		saveUserAction,
+		historyTree
+	} from '@sudoku/stores/treeHistoryManager';
+
+	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
+
+	function handleKeyButton(num) {
+		if (!$keyboardDisabled) {
+			if ($notes) {
+				if (num === 0) {
+					candidates.clear($cursor);
+				} else {
+					candidates.add($cursor, num);
+				}
+				userGrid.set($cursor, 0);
+			} else {
+				if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
+					candidates.clear($cursor);
+				}
+				const total_candidates = getCandidateSet($userGrid, ['NakedPair', 'HiddenSingle']);
+				let cellCandidates = total_candidates[$cursor.x][$cursor.y];
+
+				if(cellCandidates.length > 1 && !isInBacktrackMode) {
+					saveUserAction($cursor, num, cellCandidates, true);
+				}
+				
+				userGrid.set($cursor, num);
+				saveUserAction($cursor, num, cellCandidates, false);
+			}
+		}
+	}
+
+	function handleKey(e) {
+		switch (e.key || e.keyCode) {
+			case 'ArrowUp':
+			case 38:
+			case 'w':
+			case 87:
+				cursor.move(0, -1);
+				break;
+
+			case 'ArrowDown':
+			case 40:
+			case 's':
+			case 83:
+				cursor.move(0, 1);
+				break;
+
+			case 'ArrowLeft':
+			case 37:
+			case 'a':
+			case 65:
+				cursor.move(-1);
+				break;
+
+			case 'ArrowRight':
+			case 39:
+			case 'd':
+			case 68:
+				cursor.move(1);
+				break;
+
+			case 'Backspace':
+			case 8:
+			case 'Delete':
+			case 46:
+				handleKeyButton(0);
+				break;
+
+			default:
+				if (e.key && e.key * 1 >= 0 && e.key * 1 < 10) {
+					handleKeyButton(e.key * 1);
+				} else if (e.keyCode - 48 >= 0 && e.keyCode - 48 < 10) {
+					handleKeyButton(e.keyCode - 48);
+				}
+				break;
+		}
+	}
+</script>
+
+<svelte:window on:keydown={handleKey} /><!--on:beforeunload|preventDefault={e => e.returnValue = ''} />-->
+
+<div class="keyboard-grid">
+
+	{#each Array(10) as _, keyNum}
+		{#if keyNum === 9}
+			<button class="btn btn-key" disabled={$keyboardDisabled} title="Erase Field" on:click={() => handleKeyButton(0)}>
+				<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+				</svg>
+			</button>
+		{:else}
+			<button class="btn btn-key" disabled={$keyboardDisabled} title="Insert {keyNum + 1}" on:click={() => handleKeyButton(keyNum + 1)}>
+				{keyNum + 1}
+			</button>
+		{/if}
+	{/each}
+
+</div>
+
+<style>
+	.keyboard-grid {
+		@apply grid grid-rows-2 grid-cols-5 gap-3;
+	}
+
+
+	.btn-key {
+		@apply py-4 px-0;
+	}
+</style>
+
+=== components\Controls\ActionBar\Actions.svelte (SVELTE) ===
+<script>
+	import { candidates } from '@sudoku/stores/candidates';
+	import { userGrid } from '@sudoku/stores/grid';
+	import { cursor } from '@sudoku/stores/cursor';
+	import { hints } from '@sudoku/stores/hints';
+	import { notes } from '@sudoku/stores/notes';
+	import { settings } from '@sudoku/stores/settings';
+	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+	import { gamePaused } from '@sudoku/stores/game';
+
+	import { 
+		performBacktrack,
+		historyTree
+	} from '@sudoku/stores/treeHistoryManager';
+
+	$: canBacktrack = $historyTree.canBacktrack;
+
+	$: hintsAvailable = $hints > 0;
+
+	function handleHint() {
+		if (hintsAvailable) {
+			if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
+				candidates.clear($cursor);
+			}
+
+			userGrid.applyHint($cursor);
+		}
+	}
+</script>
+
+<div class="action-buttons space-x-3">
+
+	<button class="btn btn-round btn-badge" 
+	        disabled={$gamePaused || !canBacktrack} 
+	        on:click={() => {
+	          performBacktrack();
+	        }}
+	        title="reverse">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+			      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+		</svg>
+	</button>
+
+	<button class="btn btn-round" disabled={$gamePaused} title="Undo">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+		</svg>
+	</button>
+
+	<button class="btn btn-round" disabled={$gamePaused} title="Redo">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 90 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+		</svg>
+	</button>
+
+	<button class="btn btn-round btn-badge" disabled={$keyboardDisabled || !hintsAvailable || $userGrid[$cursor.y][$cursor.x] !== 0} on:click={handleHint} title="Hints ({$hints})">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+		</svg>
+
+		{#if $settings.hintsLimited}
+			<span class="badge" class:badge-primary={hintsAvailable}>{$hints}</span>
+		{/if}
+	</button>
+
+	<button class="btn btn-round btn-badge" on:click={notes.toggle} title="Notes ({$notes ? 'ON' : 'OFF'})">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+		</svg>
+
+		<span class="badge tracking-tighter" class:badge-primary={$notes}>{$notes ? 'ON' : 'OFF'}</span>
+	</button>
+
+</div>
+
+
+<style>
+	.action-buttons {
+		@apply flex flex-wrap justify-evenly self-end;
+	}
+
+	.btn-badge {
+		@apply relative;
+	}
+
+	.badge {
+		min-height: 20px;
+		min-width:  20px;
+		@apply p-1 rounded-full leading-none text-center text-xs text-white bg-gray-600 inline-block absolute top-0 left-0;
+	}
+
+	.badge-primary {
+		@apply bg-primary;
+	}
+</style>
+
+=== components\Controls\ActionBar\index.svelte (SVELTE) ===
+<script>
+	import Timer from './Timer.svelte';
+	import Actions from './Actions.svelte';
+</script>
+
+<div class="action-bar space-y-3 xs:space-y-0">
+	<Timer />
+
+	<Actions />
+</div>
+
+<style>
+	.action-bar {
+		@apply flex flex-col flex-wrap justify-between pb-5;
+	}
+
+	@screen xs {
+		.action-bar {
+			@apply flex-row;
+		}
+	}
+</style>
+
+=== components\Controls\ActionBar\Timer.svelte (SVELTE) ===
+<script>
+	import { timer } from '@sudoku/stores/timer';
+	import { pauseGame, resumeGame } from '@sudoku/game';
+	import { gamePaused } from '@sudoku/stores/game';
+	import { settings } from '@sudoku/stores/settings';
+</script>
+
+<div class="timer-container">
+	<button class="btn btn-round" on:click={() => $gamePaused ? resumeGame() : pauseGame()} title="{$gamePaused ? 'Resume Game' : 'Pause Game'}">
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			{#if $gamePaused}
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.19 9.61L9.01 3.48A2.87 2.87 0 004.54 5.88v12.25a2.87 2.87 0 004.47 2.39l9.18-6.12a2.87 2.87 0 000-4.78v0z" />
+			{:else}
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3v18M18 3v18" />
+			{/if}
+		</svg>
+	</button>
+
+	{#if $settings.displayTimer}
+		<span class="timer-text" title="Time">{$timer}</span>
+	{/if}
+</div>
+
+<style>
+	.timer-container {
+		@apply flex items-center bg-gray-300 rounded-full self-start;
+	}
+
+	.timer-text {
+		@apply px-4 text-2xl;
+	}
+</style>
+
+=== components\Header\Buttons.svelte (SVELTE) ===
+<script>
+	import { modal } from '@sudoku/stores/modal';
+	import { pauseGame, resumeGame } from '@sudoku/game';
+
+	function handleShareButton() {
+		pauseGame();
+		modal.show('share', { onHide: resumeGame });
+	}
+
+	function handleSettingsButton() {
+		pauseGame();
+		modal.show('settings', { onHide: resumeGame });
+	}
+</script>
+
+<div class="flex justify-evenly space-x-3">
+
+	<button class="btn btn-header" title="Share this Sudoku puzzle" on:click={handleShareButton}>
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+		</svg>
+	</button>
+
+	<button class="btn btn-header" title="Open Settings" on:click={handleSettingsButton}>
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+		</svg>
+	</button>
+
+</div>
+
+<style>
+	.btn-header {
+		@apply bg-white bg-opacity-0 transition-opacity p-3;
+	}
+
+	.btn-header:hover {
+		@apply bg-opacity-25;
+	}
+
+	.btn-header:active {
+		@apply bg-opacity-50;
+	}
+
+	.btn-header:focus {
+		@apply shadow-outline-inverse;
+	}
+</style>
+
+=== components\Header\Dropdown.svelte (SVELTE) ===
+<script>
+	import game from '@sudoku/game';
+	import { validateSencode } from '@sudoku/sencode';
+	import { modal } from '@sudoku/stores/modal';
+	import { slide, fade } from 'svelte/transition';
+	import { DIFFICULTIES, DROPDOWN_DURATION, DIFFICULTY_CUSTOM } from '@sudoku/constants';
+	import { difficulty } from '@sudoku/stores/difficulty';
+
+	let dropdownVisible = false;
+
+	function handleDifficulty(difficultyValue) {
+		dropdownVisible = false;
+		game.pause();
+
+		modal.show('confirm', {
+			title: 'New Game',
+			text: 'Start new game with difficulty "' + DIFFICULTIES[difficultyValue] + '"?',
+			button: 'Continue',
+			onHide: game.resume,
+			callback: () => {
+				game.startNew(difficultyValue);
+			},
+		});
+	}
+
+	function handleCreateOwn() {
+		dropdownVisible = false;
+		game.pause();
+
+		modal.show('confirm', {
+			title: 'Create Own',
+			text: 'Switch to the creator mode to create your own Sudoku puzzle?',
+			button: 'Continue',
+			onHide: game.resume,
+			callback: () => {
+				//game.startCreatorMode();
+			},
+		});
+	}
+
+	function handleEnterCode() {
+		dropdownVisible = false;
+		game.pause();
+
+		modal.show('prompt', {
+			title: 'Enter Code',
+			text: 'Please enter the code of the Sudoku puzzle you want to play:',
+			fontMono: true,
+			button: 'Start',
+			onHide: game.resume,
+			callback: (value) => {
+				game.startCustom(value);
+			},
+			validate: validateSencode
+		});
+	}
+
+	function showDropdown() {
+		dropdownVisible = true;
+		game.pause();
+	}
+
+	function hideDropdown() {
+		dropdownVisible = false;
+		setTimeout(game.resume, DROPDOWN_DURATION);
+	}
+</script>
+
+<div class="dropdown">
+	<button class="dropdown-button" on:click={dropdownVisible ? hideDropdown : showDropdown} title="{dropdownVisible ? 'Close' : 'Open'} Menu">
+		<svg class="icon-outline mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h12" />
+		</svg>
+
+		<span class="text-2xl tracking-wider">{$difficulty === DIFFICULTY_CUSTOM ? 'Custom' : DIFFICULTIES[$difficulty]}</span>
+	</button>
+
+	{#if dropdownVisible}
+		<button transition:fade={{duration: DROPDOWN_DURATION}} class="dropdown-overlay" on:click={hideDropdown} tabindex="-1"></button>
+
+		<div transition:slide={{duration: DROPDOWN_DURATION}} class="dropdown-menu">
+			{#each Object.entries(DIFFICULTIES) as [difficultyValue, difficultyLabel]}
+				<a class="dropdown-item" on:click|preventDefault={() => handleDifficulty(difficultyValue)} href="/difficulty-{difficultyValue}" title="Set difficulty to '{difficultyLabel}'">
+					<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+					</svg>
+
+					<span class="align-middle">{difficultyLabel}</span>
+				</a>
+			{/each}
+
+			<hr class="my-1">
+
+			<a class="dropdown-item" on:click|preventDefault={handleCreateOwn} href="/create" title="Create your own Sudoku puzzle">
+				<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+				</svg>
+
+				<span class="align-middle">Create Own</span>
+			</a>
+			<a class="dropdown-item" on:click|preventDefault={handleEnterCode} href="/enter-code" title="Enter a Sudoku puzzle code from a friend">
+				<svg class="icon-solid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+					<path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+					<path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+				</svg>
+
+				<span class="align-middle">Enter Code</span>
+			</a>
+		</div>
+	{/if}
+</div>
+
+<style>
+	.dropdown {
+		@apply relative;
+	}
+
+	.dropdown-button {
+		@apply relative z-30 block flex outline-none items-center;
+	}
+
+	.dropdown-overlay {
+		@apply fixed z-20 inset-0 h-full w-full bg-black bg-opacity-50 outline-none cursor-default;
+	}
+
+	.dropdown-menu {
+		@apply absolute z-30 left-0 mt-2 py-2 w-48 bg-white rounded-lg shadow-xl;
+	}
+
+
+	.dropdown-item {
+		@apply block px-4 py-2 text-gray-800 transition-colors duration-100 text-lg tracking-wide font-semibold;
+	}
+
+	.dropdown-item:hover {
+		@apply bg-primary text-white;
+	}
+
+	.dropdown-item:active {
+		@apply bg-primary-dark;
+	}
+</style>
+
+=== components\Header\index.svelte (SVELTE) ===
+<script>
+	import Buttons from './Buttons.svelte';
+	import Dropdown from './Dropdown.svelte';
+</script>
+
+<div class="px-4 py-4 flex justify-center text-white">
+	<div class="w-full max-w-xl">
+
+		<nav class="flex flex-wrap items-center justify-between">
+			<Dropdown />
+
+			<Buttons />
+		</nav>
+
+	</div>
+</div>
+
+=== components\Modal\index.svelte (SVELTE) ===
+<script>
+	import { fade, scale } from 'svelte/transition';
+	import { modal, modalData } from '@sudoku/stores/modal';
+	import { MODAL_NONE, MODAL_DURATION } from '@sudoku/constants';
+	import types from './Types';
+
+	const MODALS_DISABLED_OVERLAY = ['welcome', 'gameover'];
+
+	function handleOverlayClick() {
+		if (!MODALS_DISABLED_OVERLAY.includes($modal)) {
+			modal.hide();
+		}
+	}
+</script>
+
+{#if $modal !== MODAL_NONE}
+	<div class="modal">
+		<button transition:fade={{duration: MODAL_DURATION}} class="modal-overlay" on:click={handleOverlayClick} tabindex="-1"></button>
+
+		<div transition:scale={{duration: MODAL_DURATION}} class="modal-container">
+			<div class="modal-content">
+				<svelte:component this={types[$modal]} data={$modalData} hideModal={modal.hide} />
+			</div>
+		</div>
+	</div>
+{/if}
+
+<style>
+	.modal {
+		@apply fixed z-40 w-full h-full top-0 left-0 flex items-center justify-center;
+	}
+
+	.modal-overlay {
+		@apply fixed z-40 inset-0 h-full w-full bg-black bg-opacity-50 outline-none cursor-default;
+	}
+
+	.modal-container {
+		@apply z-50 bg-gray-custom w-11/12 mx-auto rounded-xl shadow-lg overflow-y-auto;
+	}
+
+	.modal-content {
+		@apply flex flex-col p-6 text-left;
+	}
+
+
+	@screen md {
+		.modal-container {
+			@apply max-w-md;
+		}
+	}
+</style>
+
+=== components\Modal\Types\Confirm.svelte (SVELTE) ===
+<script>
+	export let data = {};
+	export let hideModal;
+
+	function handleContinue() {
+		if (data.callback) data.callback();
+		hideModal();
+	}
+</script>
+
+<h1 class="text-3xl font-semibold mb-5 leading-none">{data.title || 'Confirm'}</h1>
+
+{#if data.text}
+	<p class="text-lg mb-5">{data.text}</p>
+{/if}
+
+<div class="flex justify-end">
+	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+	<button class="btn btn-small btn-primary" on:click={handleContinue}>{data.button || 'Okay'}</button>
+</div>
+
+=== components\Modal\Types\GameOver.svelte (SVELTE) ===
+<script>
+	import { DIFFICULTIES, DIFFICULTY_CUSTOM, GAME_OVER_CELEBRATIONS } from '@sudoku/constants';
+	import { resumeGame } from '@sudoku/game';
+	import { modal } from '@sudoku/stores/modal';
+	import { timer } from '@sudoku/stores/timer';
+	import { difficulty } from '@sudoku/stores/difficulty';
+	import { usedHints } from '@sudoku/stores/hints';
+
+	const gameOverCelebration = GAME_OVER_CELEBRATIONS[Math.floor(Math.random() * GAME_OVER_CELEBRATIONS.length)];
+
+	function handleShare() {
+		modal.show('share', { onHide: () => modal.show('gameover'), onHideReplace: true });
+	}
+
+	function handleNewGame() {
+		modal.show('welcome', { onHide: resumeGame });
+	}
+</script>
+
+<div class="flex flex-col text-center items-center">
+	<svg class="h-32 w-32 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+		<path d="M1 6.417c0-1.013.822-1.833 1.834-1.833 1.215 0 2.104 1.167 1.763 2.329-.559 1.915 5.827 3.731 6.771-1.471.239-1.323-.021-1.67-.668-2.321-.329-.329-.534-.783-.534-1.287 0-1.013.822-1.834 1.834-1.834 1.014 0 1.833.821 1.833 1.833 0 .504-.204.958-.533 1.287-.646.65-.905.998-.666 2.321.941 5.2 7.33 3.387 6.77 1.471-.339-1.162.548-2.329 1.764-2.329 1.012 0 1.832.821 1.832 1.834 0 1.118-.992 1.97-2.084 1.816-1.32-.187-3.03 4.554-3.417 6.716-1.765-.615-3.618-.942-5.493-.949-1.875.006-3.74.334-5.504.949-.388-2.162-2.098-6.903-3.418-6.717-1.092.155-2.084-.697-2.084-1.815zm-1 14.583h2.359l.566 3c.613-1.012 1.388-1.912 2.277-2.68l-2.342-3.335c-1.089.879-2.053 1.848-2.86 3.015zm24 0h-2.359l-.566 3c-.613-1.012-1.388-1.912-2.277-2.68l2.343-3.335c1.088.879 2.052 1.848 2.859 3.015zm-12-4.998c-2.845.009-5.491.825-7.757 2.211l2.334 3.322c1.603-.924 3.448-1.464 5.423-1.473 1.975.009 3.82.549 5.423 1.473l2.334-3.322c-2.266-1.386-4.912-2.202-7.757-2.211zm-3.022 3.498l-.65-.348-.651.348.131-.726-.531-.511.729-.101.321-.662.322.663.729.101-.53.511.13.725zm3.672-.5l-.65-.348-.65.348.131-.726-.531-.511.729-.101.321-.662.322.663.729.101-.53.511.129.725zm3.718.5l-.65-.348-.65.348.131-.726-.531-.511.729-.101.322-.663.322.663.729.101-.53.511.128.726z" />
+	</svg>
+
+	<h1 class="text-4xl font-semibold">{gameOverCelebration}</h1>
+</div>
+
+<div class="game-data space-y-2">
+	<div class="game-data-item">
+		<div class="item-icon">
+			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+		</div>
+
+		<div class="item-data">
+			<div class="item-data-label">
+				Time:
+			</div>
+
+			<div class="item-data-value">
+				{$timer}
+			</div>
+		</div>
+	</div>
+
+	<div class="game-data-item">
+		<div class="item-icon">
+			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+			</svg>
+		</div>
+
+		<div class="item-data">
+			<div class="item-data-label">
+				Difficulty:
+			</div>
+
+			<div class="item-data-value">
+				{$difficulty === DIFFICULTY_CUSTOM ? 'Custom' : DIFFICULTIES[$difficulty]}
+			</div>
+		</div>
+	</div>
+
+	<div class="game-data-item">
+		<div class="item-icon">
+			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+			</svg>
+		</div>
+
+		<div class="item-data">
+			<div class="item-data-label">
+				Hints used:
+			</div>
+
+			<div class="item-data-value">
+				{$usedHints}
+			</div>
+		</div>
+	</div>
+</div>
+
+<button class="btn btn-small w-full mb-2" on:click={handleShare}>Share this Sudoku puzzle</button>
+<button class="btn btn-small btn-primary w-full" on:click={handleNewGame}>New Game</button>
+
+<style>
+	.game-data {
+		@apply mt-6 mb-10 w-full text-xl;
+	}
+
+	.game-data-item {
+		@apply flex;
+	}
+
+	.item-icon {
+		@apply flex-auto mr-3;
+	}
+
+	.item-data {
+		@apply flex-grow w-full flex flex-wrap border-b-2 border-gray-300 pb-1;
+	}
+
+	.item-data-label {
+		@apply w-1/2 text-left;
+	}
+
+	.item-data-value {
+		@apply w-1/2 text-right;
+	}
+</style>
+
+=== components\Modal\Types\index.js (JAVASCRIPT) ===
+import share from './Share.svelte';
+import qrcode from './QRCode.svelte';
+import settings from './Settings.svelte';
+import confirm from './Confirm.svelte';
+import prompt from './Prompt.svelte';
+import welcome from './Welcome.svelte';
+import gameover from './GameOver.svelte';
+
+export default {
+	share,
+	qrcode,
+	settings,
+	confirm,
+	prompt,
+	welcome,
+	gameover
+}
+
+=== components\Modal\Types\Prompt.svelte (SVELTE) ===
+<script>
+	export let data = {};
+	export let hideModal;
+
+	let value = '';
+
+	function handleButton() {
+		if (data.callback) data.callback(value);
+		hideModal();
+	}
+</script>
+
+<h1 class="text-3xl font-semibold mb-5 leading-none">{data.title || 'Please enter something'}</h1>
+
+{#if data.text}
+	<label for="prompt-input" class="text-lg mb-4">{data.text}</label>
+{/if}
+
+<input class="input mb-5" id="prompt-input" name="prompt-input" class:font-mono={data.fontMono} bind:value type="text">
+
+<div class="flex justify-end">
+	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+	<button class="btn btn-small btn-primary" disabled={data.validate ? !data.validate(value) : false} on:click={handleButton}>{data.button || 'Okay'}</button>
+</div>
+
+=== components\Modal\Types\QRCode.svelte (SVELTE) ===
+<script>
+	import { modal } from '@sudoku/stores/modal';
+
+	export let data = {};
+
+	const image = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&charset-source=UTF-8&charset-target=UTF-8&ecc=L&color=000&bgcolor=f7f9fc&margin=8&qzone=0&format=png&data=' + data.encodedLink;
+
+	function select(element) {
+		element.select();
+		element.setSelectionRange(0, element.value.length);
+	}
+</script>
+
+<img class="h-full w-full" src={image} />
+
+<div class="mt-3">
+	<button class="btn btn-small w-full" on:click={() => modal.show('share', data)}>
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+		</svg>
+
+		<span>Back</span>
+	</button>
+</div>
+
+=== components\Modal\Types\Settings.svelte (SVELTE) ===
+<script>
+	import { slide } from 'svelte/transition';
+	import Switch from '../../Utils/Switch.svelte';
+	import { settings as settingsStore } from '@sudoku/stores/settings';
+	import { MAX_HINTS } from '@sudoku/constants';
+
+	export let data = {};
+	export let hideModal;
+
+	let settings = { ...$settingsStore };
+
+	let hintsLimited = settings.hintsLimited;
+
+	function handleSave() {
+		settings.hintsLimited = hintsLimited;
+
+		if (settings.hints < 0) settings.hints = 0;
+		if (settings.hints > MAX_HINTS) settings.hints = MAX_HINTS;
+
+		settingsStore.set(settings);
+		hideModal();
+	}
+</script>
+
+<h1 class="text-3xl font-semibold mb-6 leading-none">Settings</h1>
+
+<!--
+
+- Display Timer while playing
+- Highlight cells in same Row/Column/Box
+- Highlight matching digits
+- Highlight conflicting digits
+-
+
+-->
+
+<div class="flex flex-col mb-6 space-y-3">
+	<!--<Switch bind:checked={settings.darkTheme} text="Enable dark theme" id="dark-theme" />-->
+	<Switch bind:checked={settings.displayTimer} text="Display timer while playing" id="display-timer" />
+
+	<Switch bind:checked={hintsLimited} text="Limit the number of hints available" id="hints-limited" />
+	{#if hintsLimited}
+		<div transition:slide class="inline-flex items-center">
+			<label for="hints" class="flex-grow text-lg">Number of available hints</label>
+
+			<input bind:value={settings.hints} class="number-input" id="hints" name="hints" type="number" min="0" max="81" />
+		</div>
+	{/if}
+
+	<Switch bind:checked={settings.highlightCells} text="Highlight cells in same row/column/box" id="highlight-cells" />
+	<Switch bind:checked={settings.highlightSame} text="Highlight cells with the same number" id="highlight-matching" />
+	<Switch bind:checked={settings.highlightConflicting} text="Highlight conflicting numbers" id="highlight-conflicting" />
+</div>
+
+<div class="flex justify-end">
+	<button class="btn btn-small mr-3" on:click={hideModal}>Cancel</button>
+	<button class="btn btn-small btn-primary" on:click={handleSave}>Save</button>
+</div>
+
+<style>
+	.number-input {
+		@apply w-12 h-8 px-1 border-2 rounded-lg shadow-inner text-xl text-center leading-none;
+	}
+
+	.number-input:focus {
+		@apply outline-none shadow-outline;
+	}
+</style>
+
+=== components\Modal\Types\Share.svelte (SVELTE) ===
+<script>
+	import { onMount } from 'svelte';
+	import { BASE_URL } from '@sudoku/constants';
+	import { modal } from '@sudoku/stores/modal';
+	import { grid } from '@sudoku/stores/grid';
+	import Clipboard from '../../Utils/Clipboard.svelte';
+
+	export let data = {};
+	export let hideModal;
+
+	const sencode = grid.getSencode($grid);
+
+	const link = BASE_URL + '#' + sencode;
+	const encodedLink = encodeURIComponent(link);
+	const facebookLink = 'https://www.facebook.com/sharer/sharer.php?u=' + encodedLink;
+	const twitterLink = 'https://twitter.com/intent/tweet?text=Check%20out%20this%20Sudoku%20puzzle!&url=' + encodedLink;
+	const mailToLink = 'mailto:?subject=A%20Sudoku%20puzzle%20for%20you&body=Here%27s%20a%20link%20to%20a%20Sudoku%20puzzle%20on%20sudoku.jonasgeiler.com%3A%0A%0A' + encodedLink;
+
+	let copyText;
+
+	function select(element) {
+		element.select();
+		element.setSelectionRange(0, element.value.length);
+	}
+
+	onMount(() => {
+		let canShare = false;
+		const shareData = {
+			url: link,
+			title: 'Sudoku',
+			text: 'Create & play Sudoku puzzles for free online on sudoku.jonasgeiler.com!'
+		};
+
+		if ('share' in navigator) {
+			canShare = true;
+		}
+
+		if ('canShare' in navigator) {
+			canShare = navigator.canShare(shareData);
+		}
+
+		if (canShare) {
+			navigator.share(shareData);
+		}
+	});
+</script>
+
+<div class="flex justify-between items-center mb-6">
+	<h1 class="text-3xl font-semibold leading-none">Share Sudoku</h1>
+
+	<div class="cursor-pointer" on:click={hideModal}>
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+		</svg>
+	</div>
+</div>
+
+<div class="code-container">
+	<input class="input code-field" type="text" readonly value={sencode} on:click={e => select(e.target)}>
+
+	<button class="btn btn-copy" on:click={copyText(sencode)}>
+		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+		</svg>
+	</button>
+</div>
+
+<hr class="my-8" />
+
+<div class="flex flex-col space-y-2">
+
+	<a href={link} class="btn btn-small" on:click|preventDefault={copyText(link)}>
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+		</svg>
+
+		<span>Copy Link</span>
+	</a>
+
+	<a href={twitterLink} target="_blank" class="btn btn-share btn-share-twitter btn-small">
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+			<path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+		</svg>
+
+		<span>Share on Twitter</span>
+	</a>
+
+	<a href={facebookLink} target="_blank" class="btn btn-share btn-share-facebook btn-small">
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+			<path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
+		</svg>
+
+		<span>Share on Facebook</span>
+	</a>
+
+	<a href={mailToLink} target="_blank" class="btn btn-small">
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+		</svg>
+
+		<span>Share by Email</span>
+	</a>
+
+	<button class="btn btn-small" on:click={() => modal.show('qrcode', { ...data, encodedLink })}>
+		<svg class="icon-outline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+		</svg>
+
+		<span>Share QR Code</span>
+	</button>
+</div>
+
+<Clipboard bind:copyText />
+
+<style>
+	.code-container {
+		@apply flex flex-col;
+	}
+
+	.code-field {
+		@apply rounded-b-none font-mono text-center;
+	}
+
+	.btn-copy {
+		@apply p-3 rounded-t-none;
+	}
+
+	@screen sm {
+		.code-container {
+			@apply flex-row;
+		}
+
+		.code-field {
+			@apply flex-grow rounded-bl-xl rounded-r-none;
+		}
+
+		.btn-copy {
+			@apply rounded-tr-xl rounded-l-none;
+		}
+	}
+
+
+	.btn-share {
+		@apply text-white border-none;
+	}
+
+	.btn-share-twitter {
+		background-color: #1da1f2;
+	}
+
+	.btn-share-twitter:hover {
+		background-color: #1a91da;
+	}
+
+	.btn-share-twitter:active {
+		background-color: #1781c2;
+	}
+
+	.btn-share-facebook {
+		background-color: #1877f2;
+	}
+
+	.btn-share-facebook:hover {
+		background-color: #166bda;
+	}
+
+	.btn-share-facebook:active {
+		background-color: #135fc2;
+	}
+</style>
+
+=== components\Modal\Types\Welcome.svelte (SVELTE) ===
+<script>
+	import { difficulty as difficultyStore } from '@sudoku/stores/difficulty';
+	import { startNew, startCustom } from '@sudoku/game';
+	import { validateSencode } from '@sudoku/sencode';
+	import { DIFFICULTIES } from '@sudoku/constants';
+
+	export let data = {};
+	export let hideModal;
+
+	let difficulty = $difficultyStore;
+	let sencode = data.sencode || '';
+
+	$: enteredSencode = sencode.trim().length !== 0;
+	$: buttonDisabled = enteredSencode ? !validateSencode(sencode) : !DIFFICULTIES.hasOwnProperty(difficulty);
+
+	function handleStart() {
+		if (validateSencode(sencode)) {
+			startCustom(sencode);
+		} else {
+			startNew(difficulty);
+		}
+
+		hideModal();
+	}
+</script>
+
+<h1 class="text-3xl font-semibold mb-6 leading-none">Welcome!</h1>
+
+{#if data.sencode}
+	<div class="p-3 text-lg rounded bg-primary bg-opacity-25 border-l-8 border-primary border-opacity-75 mb-4">
+		Someone shared a Sudoku puzzle with you!<br>Just click start if you want to play it
+	</div>
+{/if}
+
+<label for="difficulty" class="text-lg mb-3">To start a game, choose a difficulty:</label>
+
+<div class="inline-block relative mb-6">
+	<select id="difficulty" class="btn btn-small w-full appearance-none leading-normal" bind:value={difficulty} disabled={enteredSencode}>
+		{#each Object.entries(DIFFICULTIES) as [difficultyValue, difficultyLabel]}
+			<option value={difficultyValue}>{difficultyLabel}</option>
+		{/each}
+	</select>
+
+	<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+		<svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+			<path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+		</svg>
+	</div>
+</div>
+
+<label for="sencode" class="text-lg mb-3">Or, if you have a code for a custom Sudoku puzzle, enter it here:</label>
+
+<input id="sencode" class="input font-mono mb-5" bind:value={sencode} type="text">
+
+<div class="flex justify-end">
+	<button class="btn btn-small btn-primary" disabled={buttonDisabled} on:click={handleStart}>Start</button>
+</div>
+
+=== components\Utils\Clipboard.svelte (SVELTE) ===
+<script>
+	let textArea;
+
+	export const copyText = function (text) {
+		if (navigator.clipboard) return navigator.clipboard.writeText(text);
+
+		textArea.value = text;
+
+		const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
+
+		textArea.select();
+
+		let success = false;
+		try {
+			success = document.execCommand('copy');
+		} catch (e) {
+		}
+
+		if (selected) {
+			document.getSelection().removeAllRanges();
+			document.getSelection().addRange(selected);
+		}
+
+		return success
+				? Promise.resolve()
+				: Promise.reject();
+	};
+</script>
+
+<textarea readonly="readonly" style="position: absolute; left: -9999px;" bind:this={textArea}></textarea>
+
+=== components\Utils\Switch.svelte (SVELTE) ===
+<script>
+	export let id = '';
+	export let text = '';
+	export let checked = false;
+	export let disabled = false;
+</script>
+
+<label for="{id}" class="inline-flex items-center">
+	<span class="flex-grow cursor-pointer text-lg">{text}</span>
+
+	<span class="switch">
+		<input {id} name="{id}" type="checkbox" class="sr-only" {disabled} bind:checked />
+		<span class="track"></span>
+		<span class="thumb"></span>
+	</span>
+</label>
+
+<style>
+	.switch {
+		@apply inline-block relative align-middle cursor-pointer select-none bg-transparent;
+	}
+
+	.track {
+		@apply block w-12 h-6 bg-gray-600 rounded-full shadow-inner;
+	}
+
+	.thumb {
+		@apply block transition-all duration-300 ease-in-out absolute top-0 left-0 w-6 h-6 bg-white border-2 border-gray-600 rounded-full;
+	}
+
+	input[type='checkbox']:checked ~ .thumb {
+		@apply transform translate-x-full border-primary;
+	}
+
+	input[type='checkbox']:checked ~ .track {
+		@apply transform transition-colors bg-primary;
+	}
+
+	input[type='checkbox']:disabled ~ .track {
+		@apply bg-gray-500;
+	}
+
+	input[type='checkbox']:disabled ~ .thumb {
+		@apply bg-gray-100 border-gray-500;
+	}
+
+	input[type='checkbox']:focus + .track,
+	input[type='checkbox']:active + .track {
+		@apply outline-none shadow-outline;
+	}
+</style>

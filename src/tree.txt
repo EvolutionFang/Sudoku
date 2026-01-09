@@ -1,0 +1,72 @@
+📁 ./src
+├── 📄 App.svelte
+├── collect_files.py
+├── 📁 components/
+│   ├── 📁 Board/
+│   │   ├── 📄 Candidates.svelte
+│   │   ├── 📄 Cell.svelte
+│   │   └── 📄 index.svelte
+│   ├── 📁 Controls/
+│   │   ├── 📁 ActionBar/
+│   │   │   ├── 📄 Actions.svelte
+│   │   │   ├── 📄 Timer.svelte
+│   │   │   └── 📄 index.svelte
+│   │   ├── 📄 Keyboard.svelte
+│   │   └── 📄 index.svelte
+│   ├── 📁 Header/
+│   │   ├── 📄 Buttons.svelte
+│   │   ├── 📄 Dropdown.svelte
+│   │   └── 📄 index.svelte
+│   ├── 📁 Modal/
+│   │   ├── 📁 Types/
+│   │   │   ├── 📄 Confirm.svelte
+│   │   │   ├── 📄 GameOver.svelte
+│   │   │   ├── 📄 Prompt.svelte
+│   │   │   ├── 📄 QRCode.svelte
+│   │   │   ├── 📄 Settings.svelte
+│   │   │   ├── 📄 Share.svelte
+│   │   │   ├── 📄 Welcome.svelte
+│   │   │   └── 📄 index.js
+│   │   └── 📄 index.svelte
+│   ├── 📁 Utils/
+│   │   ├── 📄 Clipboard.svelte
+│   │   └── 📄 Switch.svelte
+│   ├── collect_files.py
+│   ├── summary.txt
+│   └── tree.txt
+├── components.txt
+├── 📄 main.js
+├── 📁 node_modules/
+│   ├── 📁 @sudoku/
+│   │   ├── 📄 constants.js
+│   │   ├── 📄 game.js
+│   │   ├── 📁 sencode/
+│   │   │   ├── 📄 base62.js
+│   │   │   └── 📄 index.js
+│   │   ├── 📁 stores/
+│   │   │   ├── 📄 candidates.js
+│   │   │   ├── 📄 cursor.js
+│   │   │   ├── 📄 difficulty.js
+│   │   │   ├── 📄 game.js
+│   │   │   ├── 📄 grid.js
+│   │   │   ├── 📄 hints.js
+│   │   │   ├── 📄 history.js
+│   │   │   ├── 📄 historyUtils.js
+│   │   │   ├── 📄 keyboard.js
+│   │   │   ├── 📄 logicalCandidates.js
+│   │   │   ├── 📄 modal.js
+│   │   │   ├── 📄 notes.js
+│   │   │   ├── 📄 settings.js
+│   │   │   ├── 📄 timer.js
+│   │   │   └── 📄 treeHistoryManager.js
+│   │   ├── 📄 strategies.js
+│   │   └── 📄 sudoku.js
+│   ├── collect_files.py
+│   ├── summary.txt
+│   └── tree.txt
+├── node_modules.txt
+├── 📁 styles/
+│   └── 📄 global.css
+├── summary.txt
+├── template.html
+└── tree.txt
