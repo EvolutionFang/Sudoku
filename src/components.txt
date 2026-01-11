@@ -249,121 +249,164 @@
    3 | 	import { cursor } from '@sudoku/stores/cursor';
    4 | 	import { notes } from '@sudoku/stores/notes';
    5 | 	import { candidates } from '@sudoku/stores/candidates';
-   6 | 	import { getCandidateSet } from '@sudoku/strategies';
-   7 | 
-   8 | 	// TODO: Improve keyboardDisabled
-   9 | 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
+   6 | 	import { difficulty } from '@sudoku/stores/difficulty'; // 引入难度
+   7 | 	import { getCandidateSet, getStrategiesByDifficulty } from '@sudoku/strategies'; // 引入映射函数
+   8 | 	// 引入新的 store 和方法
+   9 | 	// 引入 triedCandidates
   10 | 	import {
-  11 | 		saveUserAction,
-  12 | 		historyTree
-  13 | 	} from '@sudoku/stores/treeHistoryManager';
-  14 | 
-  15 | 	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
-  16 | 
-  17 | 	function handleKeyButton(num) {
-  18 | 		if (!$keyboardDisabled) {
-  19 | 			if ($notes) {
-  20 | 				if (num === 0) {
-  21 | 					candidates.clear($cursor);
-  22 | 				} else {
-  23 | 					candidates.add($cursor, num);
-  24 | 				}
-  25 | 				userGrid.set($cursor, 0);
-  26 | 			} else {
-  27 | 				if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
-  28 | 					candidates.clear($cursor);
-  29 | 				}
-  30 | 				const total_candidates = getCandidateSet($userGrid, ['NakedPair', 'HiddenSingle']);
-  31 | 				let cellCandidates = total_candidates[$cursor.x][$cursor.y];
-  32 | 
-  33 | 				if(cellCandidates.length > 1 && !isInBacktrackMode) {
-  34 | 					saveUserAction($cursor, num, cellCandidates, true);
-  35 | 				}
-  36 | 
-  37 | 				userGrid.set($cursor, num);
-  38 | 				saveUserAction($cursor, num, cellCandidates, false);
-  39 | 			}
-  40 | 		}
-  41 | 	}
-  42 | 
-  43 | 	function handleKey(e) {
-  44 | 		switch (e.key || e.keyCode) {
-  45 | 			case 'ArrowUp':
-  46 | 			case 38:
-  47 | 			case 'w':
-  48 | 			case 87:
-  49 | 				cursor.move(0, -1);
-  50 | 				break;
-  51 | 
-  52 | 			case 'ArrowDown':
-  53 | 			case 40:
-  54 | 			case 's':
-  55 | 			case 83:
-  56 | 				cursor.move(0, 1);
-  57 | 				break;
+  11 | 		keyboardDisabled,
+  12 | 		isHintActive,
+  13 | 		hintCandidates,
+  14 | 		triedCandidates,
+  15 | 		resetKeyboardHints
+  16 | 	} from '@sudoku/stores/keyboard';
+  17 | 
+  18 | 	import {
+  19 | 		saveUserAction,
+  20 | 		historyTree
+  21 | 	} from '@sudoku/stores/treeHistoryManager';
+  22 | 
+  23 | 	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
+  24 | 
+  25 | 	function handleKeyButton(num) {
+  26 | 		// 如果处于提示模式
+  27 | 		if ($isHintActive && num !== 0) {
+  28 | 			// 修改逻辑：只有当数字"不在"候选列表中时才拦截。
+  29 | 			// 即使数字在 triedCandidates (已尝试) 中，因为它肯定也在 hintCandidates 中，所以允许点击。
+  30 | 			if (!$hintCandidates.includes(num)) {
+  31 | 				return;
+  32 | 			}
+  33 | 		}
+  34 | 
+  35 | 		if (!$keyboardDisabled) {
+  36 | 			if ($notes) {
+  37 | 				if (num === 0) {
+  38 | 					candidates.clear($cursor);
+  39 | 				} else {
+  40 | 					candidates.add($cursor, num);
+  41 | 				}
+  42 | 				// 笔记模式通常不填入 UserGrid，但也视具体逻辑而定
+  43 | 				userGrid.set($cursor, 0);
+  44 | 			} else {
+  45 | 				// 填入数字前，先处理候选数逻辑用于历史记录
+  46 | 				if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
+  47 | 					candidates.clear($cursor);
+  48 | 				}
+  49 | 
+  50 | 				// --- 严格保留你的核心逻辑 Start ---
+  51 | 				// 获取当前难度对应的策略列表
+  52 | 				const strategies = getStrategiesByDifficulty($difficulty);
+  53 | 				// 传入策略列表进行计算
+  54 | 				const total_candidates = getCandidateSet($userGrid, strategies);
+  55 | 				console.log('Total Candidates before inserting number:', total_candidates);
+  56 | 				let cellCandidates = total_candidates[$cursor.y][$cursor.x]; // 注意行列顺序
+  57 | 				console.log(`Candidates for cell (${$cursor.x}, ${$cursor.y}):`, cellCandidates);
   58 | 
-  59 | 			case 'ArrowLeft':
-  60 | 			case 37:
-  61 | 			case 'a':
-  62 | 			case 65:
-  63 | 				cursor.move(-1);
-  64 | 				break;
-  65 | 
-  66 | 			case 'ArrowRight':
-  67 | 			case 39:
-  68 | 			case 'd':
-  69 | 			case 68:
-  70 | 				cursor.move(1);
-  71 | 				break;
-  72 | 
-  73 | 			case 'Backspace':
-  74 | 			case 8:
-  75 | 			case 'Delete':
-  76 | 			case 46:
-  77 | 				handleKeyButton(0);
-  78 | 				break;
-  79 | 
-  80 | 			default:
-  81 | 				if (e.key && e.key * 1 >= 0 && e.key * 1 < 10) {
-  82 | 					handleKeyButton(e.key * 1);
-  83 | 				} else if (e.keyCode - 48 >= 0 && e.keyCode - 48 < 10) {
-  84 | 					handleKeyButton(e.keyCode - 48);
-  85 | 				}
-  86 | 				break;
-  87 | 		}
-  88 | 	}
-  89 | </script>
-  90 | 
-  91 | <svelte:window on:keydown={handleKey} /><!--on:beforeunload|preventDefault={e => e.returnValue = ''} />-->
-  92 | 
-  93 | <div class="keyboard-grid">
-  94 | 
-  95 | 	{#each Array(10) as _, keyNum}
-  96 | 		{#if keyNum === 9}
-  97 | 			<button class="btn btn-key" disabled={$keyboardDisabled} title="Erase Field" on:click={() => handleKeyButton(0)}>
-  98 | 				<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  99 | 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
- 100 | 				</svg>
- 101 | 			</button>
- 102 | 		{:else}
- 103 | 			<button class="btn btn-key" disabled={$keyboardDisabled} title="Insert {keyNum + 1}" on:click={() => handleKeyButton(keyNum + 1)}>
- 104 | 				{keyNum + 1}
- 105 | 			</button>
- 106 | 		{/if}
- 107 | 	{/each}
- 108 | 
- 109 | </div>
- 110 | 
- 111 | <style>
- 112 | 	.keyboard-grid {
- 113 | 		@apply grid grid-rows-2 grid-cols-5 gap-3;
- 114 | 	}
- 115 | 
- 116 | 
- 117 | 	.btn-key {
- 118 | 		@apply py-4 px-0;
- 119 | 	}
- 120 | </style>
+  59 | 				// 智能回溯的核心记录点：
+  60 | 				if(cellCandidates.length > 1 && !isInBacktrackMode) {
+  61 | 					saveUserAction($cursor, num, cellCandidates, true);
+  62 | 				}
+  63 | 
+  64 | 				userGrid.set($cursor, num);
+  65 | 				saveUserAction($cursor, num, cellCandidates, false);
+  66 | 				// --- 严格保留你的核心逻辑 End ---
+  67 | 			}
+  68 | 
+  69 | 			// 核心逻辑：填入数字后，自动重置提示状态
+  70 | 			resetKeyboardHints();
+  71 | 		}
+  72 | 	}
+  73 | 
+  74 | 	// 键盘事件处理保持不变
+  75 | 	function handleKey(e) {
+  76 | 		switch (e.key || e.keyCode) {
+  77 | 			case 'ArrowUp': case 38: case 'w': case 87: cursor.move(0, -1); break;
+  78 | 			case 'ArrowDown': case 40: case 's': case 83: cursor.move(0, 1); break;
+  79 | 			case 'ArrowLeft': case 37: case 'a': case 65: cursor.move(-1); break;
+  80 | 			case 'ArrowRight': case 39: case 'd': case 68: cursor.move(1); break;
+  81 | 
+  82 | 			case 'Backspace': case 8: case 'Delete': case 46:
+  83 | 				handleKeyButton(0);
+  84 | 				break;
+  85 | 
+  86 | 			default:
+  87 | 				if (e.key && e.key * 1 >= 0 && e.key * 1 < 10) {
+  88 | 					handleKeyButton(e.key * 1);
+  89 | 				} else if (e.keyCode - 48 >= 0 && e.keyCode - 48 < 10) {
+  90 | 					handleKeyButton(e.keyCode - 48);
+  91 | 				}
+  92 | 				break;
+  93 | 		}
+  94 | 	}
+  95 | </script>
+  96 | 
+  97 | <svelte:window on:keydown={handleKey} />
+  98 | 
+  99 | <div class="keyboard-grid">
+ 100 | 
+ 101 | 	{#each Array(10) as _, keyNum}
+ 102 | 		{#if keyNum === 9}
+ 103 | 			<!-- 清除/删除按钮 -->
+ 104 | 			<button class="btn btn-key" disabled={$keyboardDisabled} title="Erase Field" on:click={() => handleKeyButton(0)}>
+ 105 | 				<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 106 | 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+ 107 | 				</svg>
+ 108 | 			</button>
+ 109 | 		{:else}
+ 110 | 			{@const num = keyNum + 1}
+ 111 | 			{@const isCandidate = $hintCandidates.includes(num)}
+ 112 | 			{@const isTried = $triedCandidates.includes(num)}
+ 113 | 
+ 114 | 			<!-- 数字按钮 -->
+ 115 | 			<!--
+ 116 | 				class逻辑:
+ 117 | 				tried: 提示激活 且 已尝试 -> 黄色 (允许点击)
+ 118 | 				dimmed: 提示激活 且 不在候选集中 -> 变暗 (不可点击)
+ 119 | 
+ 120 | 				disabled逻辑:
+ 121 | 				只在以下情况禁用：
+ 122 | 				1. 整个键盘被禁用
+ 123 | 				2. 提示激活 且 该数字根本不在候选集中 (排除了 isTried 的判断，所以已尝试的数字可以点)
+ 124 | 			-->
+ 125 | 			<button class="btn btn-key"
+ 126 | 					class:tried={$isHintActive && isTried}
+ 127 | 					class:dimmed={$isHintActive && !isCandidate}
+ 128 | 					disabled={$keyboardDisabled || ($isHintActive && !isCandidate)}
+ 129 | 					title="Insert {num}"
+ 130 | 					on:click={() => handleKeyButton(num)}>
+ 131 | 				{num}
+ 132 | 			</button>
+ 133 | 		{/if}
+ 134 | 	{/each}
+ 135 | 
+ 136 | </div>
+ 137 | 
+ 138 | <style>
+ 139 | 	.keyboard-grid {
+ 140 | 		@apply grid grid-rows-2 grid-cols-5 gap-3;
+ 141 | 	}
+ 142 | 
+ 143 | 	.btn-key {
+ 144 | 		@apply py-4 px-0 transition-all duration-200;
+ 145 | 	}
+ 146 | 
+ 147 | 	/* 不符合逻辑的数字：变暗 */
+ 148 | 	.dimmed {
+ 149 | 		opacity: 0.1; /* 为了明显的视觉效果，建议设低一点，原先0.4也可以 */
+ 150 | 		pointer-events: none;
+ 151 | 	}
+ 152 | 
+ 153 | 	/*
+ 154 | 	   已经尝试过导致失败的数字：标蓝
+ 155 | 	   注意：移除了 pointer-events: none，所以可以点击
+ 156 | 	*/
+ 157 | 	.tried {
+ 158 | 		background-color: #fef9c3; /* bg-yellow-100 */
+ 159 | 		color: #a16207;           /* text-yellow-700 (为了对比度使用深黄色/琥珀色) */
+ 160 | 		border: 2px solid #facc15; /* border-yellow-400 */
+ 161 | 		font-weight: bold;
+ 162 | 	}
+ 163 | </style>
 
 ============================================================
 文件: Controls\ActionBar\Actions.svelte
@@ -375,95 +418,279 @@
    5 | 	import { hints } from '@sudoku/stores/hints';
    6 | 	import { notes } from '@sudoku/stores/notes';
    7 | 	import { settings } from '@sudoku/stores/settings';
-   8 | 	import { keyboardDisabled } from '@sudoku/stores/keyboard';
-   9 | 	import { gamePaused } from '@sudoku/stores/game';
-  10 | 
-  11 | 	import {
-  12 | 		performBacktrack,
-  13 | 		historyTree
-  14 | 	} from '@sudoku/stores/treeHistoryManager';
+   8 | 	import { difficulty } from '@sudoku/stores/difficulty'; // 1. 引入难度 store
+   9 | 	import { keyboardDisabled, setKeyboardHints, isHintActive } from '@sudoku/stores/keyboard';
+  10 | 	import { gamePaused } from '@sudoku/stores/game';
+  11 | 
+  12 | 	// 引入历史和回溯逻辑
+  13 | 	import { undo, redo, historyStatus } from '@sudoku/stores/history';
+  14 | 	import { performBacktrack, historyTree } from '@sudoku/stores/treeHistoryManager';
   15 | 
-  16 | 	$: canBacktrack = $historyTree.canBacktrack;
-  17 | 
-  18 | 	$: hintsAvailable = $hints > 0;
+  16 | 	// 引入策略算法
+  17 | 	import { getCandidateSet, getStrategiesByDifficulty } from '@sudoku/strategies'; // 2. 引入策略映射
+  18 | 	import { SUDOKU_SIZE, BOX_SIZE } from '@sudoku/constants';
   19 | 
-  20 | 	function handleHint() {
-  21 | 		if (hintsAvailable) {
-  22 | 			if ($candidates.hasOwnProperty($cursor.x + ',' + $cursor.y)) {
-  23 | 				candidates.clear($cursor);
-  24 | 			}
-  25 | 
-  26 | 			userGrid.applyHint($cursor);
-  27 | 		}
-  28 | 	}
-  29 | </script>
-  30 | 
-  31 | <div class="action-buttons space-x-3">
-  32 | 
-  33 | 	<button class="btn btn-round btn-badge"
-  34 | 	        disabled={$gamePaused || !canBacktrack}
-  35 | 	        on:click={() => {
-  36 | 	          performBacktrack();
-  37 | 	        }}
-  38 | 	        title="reverse">
-  39 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  40 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-  41 | 			      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-  42 | 		</svg>
-  43 | 	</button>
-  44 | 
-  45 | 	<button class="btn btn-round" disabled={$gamePaused} title="Undo">
-  46 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  47 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-  48 | 		</svg>
-  49 | 	</button>
-  50 | 
-  51 | 	<button class="btn btn-round" disabled={$gamePaused} title="Redo">
-  52 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  53 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 90 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-  54 | 		</svg>
-  55 | 	</button>
-  56 | 
-  57 | 	<button class="btn btn-round btn-badge" disabled={$keyboardDisabled || !hintsAvailable || $userGrid[$cursor.y][$cursor.x] !== 0} on:click={handleHint} title="Hints ({$hints})">
-  58 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  59 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-  60 | 		</svg>
-  61 | 
-  62 | 		{#if $settings.hintsLimited}
-  63 | 			<span class="badge" class:badge-primary={hintsAvailable}>{$hints}</span>
-  64 | 		{/if}
-  65 | 	</button>
-  66 | 
-  67 | 	<button class="btn btn-round btn-badge" on:click={notes.toggle} title="Notes ({$notes ? 'ON' : 'OFF'})">
-  68 | 		<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  69 | 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-  70 | 		</svg>
-  71 | 
-  72 | 		<span class="badge tracking-tighter" class:badge-primary={$notes}>{$notes ? 'ON' : 'OFF'}</span>
-  73 | 	</button>
-  74 | 
-  75 | </div>
+  20 | 	$: canBacktrack = $historyTree.canBacktrack;
+  21 | 	$: canUndo = $historyStatus.canUndo;
+  22 | 	$: canRedo = $historyStatus.canRedo;
+  23 | 	$: hintsAvailable = $hints > 0;
+  24 | 
+  25 | 	$: isCellEmpty = $userGrid[$cursor.y] && $userGrid[$cursor.y][$cursor.x] === 0;
+  26 | 
+  27 | 	// 用于存储生成的提示文本
+  28 | 	let hintText = '';
+  29 | 
+  30 | 	// --- 辅助函数：检测隐性唯一数 ---
+  31 | 	function checkHiddenSingle(x, y, currentCandidates, candidatesMap) {
+  32 | 		for (const num of currentCandidates) {
+  33 | 			let uniqueInRow = true;
+  34 | 			let uniqueInCol = true;
+  35 | 			let uniqueInBox = true;
+  36 | 
+  37 | 			// 1. 检查行
+  38 | 			for (let c = 0; c < SUDOKU_SIZE; c++) {
+  39 | 				if (c !== x && candidatesMap[y][c].includes(num)) {
+  40 | 					uniqueInRow = false;
+  41 | 					break;
+  42 | 				}
+  43 | 			}
+  44 | 			if (uniqueInRow) return 'Hidden Single (Row)';
+  45 | 
+  46 | 			// 2. 检查列
+  47 | 			for (let r = 0; r < SUDOKU_SIZE; r++) {
+  48 | 				if (r !== y && candidatesMap[r][x].includes(num)) {
+  49 | 					uniqueInCol = false;
+  50 | 					break;
+  51 | 				}
+  52 | 			}
+  53 | 			if (uniqueInCol) return 'Hidden Single (Col)';
+  54 | 
+  55 | 			// 3. 检查宫
+  56 | 			const startRow = Math.floor(y / BOX_SIZE) * BOX_SIZE;
+  57 | 			const startCol = Math.floor(x / BOX_SIZE) * BOX_SIZE;
+  58 | 			for (let r = startRow; r < startRow + BOX_SIZE; r++) {
+  59 | 				for (let c = startCol; c < startCol + BOX_SIZE; c++) {
+  60 | 					if ((r !== y || c !== x) && candidatesMap[r][c].includes(num)) {
+  61 | 						uniqueInBox = false;
+  62 | 						break;
+  63 | 					}
+  64 | 				}
+  65 | 			}
+  66 | 			if (uniqueInBox) return 'Hidden Single (Box)';
+  67 | 		}
+  68 | 		return null;
+  69 | 	}
+  70 | 
+  71 | 	// --- 辅助函数：比较两个候选数数组是否相等 ---
+  72 | 	function areCandidatesEqual(arr1, arr2) {
+  73 | 		if (arr1.length !== arr2.length) return false;
+  74 | 		return arr1.every(v => arr2.includes(v));
+  75 | 	}
   76 | 
-  77 | 
-  78 | <style>
-  79 | 	.action-buttons {
-  80 | 		@apply flex flex-wrap justify-evenly self-end;
-  81 | 	}
+  77 | 	/**
+  78 | 	 * 智能提示处理函数
+  79 | 	 */
+  80 | 	function handleSmartHint() {
+  81 | 		if (!hintsAvailable || !isCellEmpty || $gamePaused) return;
   82 | 
-  83 | 	.btn-badge {
-  84 | 		@apply relative;
-  85 | 	}
-  86 | 
-  87 | 	.badge {
-  88 | 		min-height: 20px;
-  89 | 		min-width:  20px;
-  90 | 		@apply p-1 rounded-full leading-none text-center text-xs text-white bg-gray-600 inline-block absolute top-0 left-0;
-  91 | 	}
-  92 | 
-  93 | 	.badge-primary {
-  94 | 		@apply bg-primary;
-  95 | 	}
-  96 | </style>
+  83 | 		const cx = $cursor.x;
+  84 | 		const cy = $cursor.y;
+  85 | 
+  86 | 		// 1. 消耗提示
+  87 | 		hints.useHint();
+  88 | 
+  89 | 		// 2. 获取当前难度允许使用的策略
+  90 | 		// Very Easy: ['HiddenSingle', 'NakedPair', 'HiddenPair']
+  91 | 		// Hard: []
+  92 | 		const allowedStrategies = getStrategiesByDifficulty($difficulty);
+  93 | 
+  94 | 		// 3. 渐进式策略检测
+  95 | 
+  96 | 		// Level 0: 基础排除 (Naked Single) - 这是所有难度的基础，永远执行
+  97 | 		const candidatesBaseMap = getCandidateSet($userGrid, []);
+  98 | 		const candidatesBase = candidatesBaseMap[cy][cx];
+  99 | 
+ 100 | 		let strategyName = '';
+ 101 | 		let finalCandidates = candidatesBase;
+ 102 | 
+ 103 | 		if (candidatesBase.length === 1) {
+ 104 | 			strategyName = 'Naked Single';
+ 105 | 		} else {
+ 106 | 			// Level 1: 手动检测隐性唯一 (Hidden Single)
+ 107 | 			// 【关键修改】：只有当难度允许 'HiddenSingle' 时才检测
+ 108 | 			if (allowedStrategies.includes('HiddenSingle')) {
+ 109 | 				const hiddenType = checkHiddenSingle(cx, cy, candidatesBase, candidatesBaseMap);
+ 110 | 				if (hiddenType) {
+ 111 | 					strategyName = hiddenType;
+ 112 | 				}
+ 113 | 			}
+ 114 | 
+ 115 | 			// 如果还没找到策略名（或者找到了HiddenSingle但也想继续优化候选数），继续尝试削减候选数
+ 116 | 			// 注意：HiddenSingle 是一种逻辑判断，不直接改变 candidatesBase 的数组内容（除非填入）。
+ 117 | 			// 而 NakedPair/HiddenPair 会直接减少候选数。
+ 118 | 
+ 119 | 			// Level 2: 尝试显性数对 (Naked Pair)
+ 120 | 			// 【关键修改】：只有当难度允许 'NakedPair' 且前面没定死策略时检测
+ 121 | 			if (!strategyName && allowedStrategies.includes('NakedPair')) {
+ 122 | 				const candidatesMediumMap = getCandidateSet($userGrid, ['NakedPair']);
+ 123 | 				const candidatesMedium = candidatesMediumMap[cy][cx];
+ 124 | 
+ 125 | 				if (!areCandidatesEqual(candidatesBase, candidatesMedium)) {
+ 126 | 					strategyName = 'Naked Pair';
+ 127 | 					finalCandidates = candidatesMedium;
+ 128 | 				}
+ 129 | 			}
+ 130 | 
+ 131 | 			// Level 3: 尝试隐性数对 (Hidden Pair)
+ 132 | 			// 【关键修改】：只有当难度允许 'HiddenPair' 时检测
+ 133 | 			// 注意：我们需要基于 Level 2 的结果继续算，或者直接算全量。
+ 134 | 			// 这里直接算全量 ['NakedPair', 'HiddenPair']，因为 HiddenPair 往往依赖 NakedPair 清理后的盘面
+ 135 | 			if (!strategyName && allowedStrategies.includes('HiddenPair')) {
+ 136 | 				// 获取一个使用了所有允许策略的集合
+ 137 | 				const candidatesHardMap = getCandidateSet($userGrid, ['NakedPair', 'HiddenPair']);
+ 138 | 				const candidatesHard = candidatesHardMap[cy][cx];
+ 139 | 
+ 140 | 				// 比较它与基础候选数（或Medium候选数）的区别
+ 141 | 				// 如果比当前最“优”的候选数还少，说明 HiddenPair 发挥了作用
+ 142 | 				if (!areCandidatesEqual(finalCandidates, candidatesHard)) {
+ 143 | 					strategyName = 'Hidden Pair';
+ 144 | 					finalCandidates = candidatesHard;
+ 145 | 				}
+ 146 | 			}
+ 147 | 		}
+ 148 | 
+ 149 | 		// 4. 生成显示文本
+ 150 | 		if (strategyName) {
+ 151 | 			hintText = `Possible Number${finalCandidates.length>1?'s':''} → ${strategyName}`;
+ 152 | 		} else {
+ 153 | 			// Hard 难度下，因为策略列表为空，大概率会落到这里
+ 154 | 			hintText = `Possible Numbers`;
+ 155 | 		}
+ 156 | 
+ 157 | 		// 5. 获取该格子在当前回溯节点中已经尝试过的数字 (用于标黄)
+ 158 | 		const triedNumbers = historyTree.getTriedForCell(cx, cy);
+ 159 | 
+ 160 | 		// 6. 设置键盘高亮
+ 161 | 		setKeyboardHints(finalCandidates, triedNumbers);
+ 162 | 	}
+ 163 | 
+ 164 | 	function handleBacktrack() {
+ 165 | 		const success = performBacktrack();
+ 166 | 
+ 167 | 		if (success) {
+ 168 | 			const currentNode = historyTree.getCurrentNodeInfo();
+ 169 | 			if (currentNode && currentNode.infos) {
+ 170 | 				const { candidates, tried } = currentNode.infos;
+ 171 | 
+ 172 | 				// 回溯时显示提示文本
+ 173 | 				hintText = "Backtracked → Decision Point";
+ 174 | 
+ 175 | 				setKeyboardHints(candidates, tried);
+ 176 | 			}
+ 177 | 		}
+ 178 | 	}
+ 179 | </script>
+ 180 | 
+ 181 | <div class="flex flex-col w-full">
+ 182 | 
+ 183 | 	<!-- 提示文本区域：只在提示激活时显示 -->
+ 184 | 	<div class="h-6 mb-2 w-full text-center">
+ 185 | 		{#if $isHintActive && hintText}
+ 186 | 			<span class="text-sm font-semibold text-gray-500 tracking-wide fade-in">
+ 187 | 				{hintText}
+ 188 | 			</span>
+ 189 | 		{/if}
+ 190 | 	</div>
+ 191 | 
+ 192 | 	<div class="action-buttons space-x-3">
+ 193 | 
+ 194 | 		<!-- 智能回溯按钮 -->
+ 195 | 		<button class="btn btn-round btn-badge"
+ 196 | 				disabled={$gamePaused || !canBacktrack}
+ 197 | 				on:click={handleBacktrack}
+ 198 | 				title="Smart Backtrack (Return to last guess)">
+ 199 | 
+ 200 | 			{#if $historyTree.isInBacktrackMode}
+ 201 | 				<span class="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+ 202 | 					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+ 203 | 					<span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+ 204 | 				</span>
+ 205 | 			{/if}
+ 206 | 
+ 207 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 208 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+ 209 | 			</svg>
+ 210 | 		</button>
+ 211 | 
+ 212 | 		<!-- Undo -->
+ 213 | 		<button class="btn btn-round" disabled={$gamePaused || !canUndo} on:click={undo} title="Undo">
+ 214 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 215 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+ 216 | 			</svg>
+ 217 | 		</button>
+ 218 | 
+ 219 | 		<!-- Redo -->
+ 220 | 		<button class="btn btn-round" disabled={$gamePaused || !canRedo} on:click={redo} title="Redo">
+ 221 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 222 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 90 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+ 223 | 			</svg>
+ 224 | 		</button>
+ 225 | 
+ 226 | 		<!-- 智能提示按钮 -->
+ 227 | 		<button class="btn btn-round btn-badge"
+ 228 | 				class:ring-4={$isHintActive} class:ring-yellow-300={$isHintActive}
+ 229 | 				disabled={$keyboardDisabled || !hintsAvailable || !isCellEmpty}
+ 230 | 				on:click={handleSmartHint}
+ 231 | 				title="Intelligent Hint ({$hints})">
+ 232 | 
+ 233 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 234 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+ 235 | 			</svg>
+ 236 | 
+ 237 | 			{#if $settings.hintsLimited}
+ 238 | 				<span class="badge" class:badge-primary={hintsAvailable}>{$hints}</span>
+ 239 | 			{/if}
+ 240 | 		</button>
+ 241 | 
+ 242 | 		<!-- 笔记按钮 -->
+ 243 | 		<button class="btn btn-round btn-badge" on:click={notes.toggle} title="Notes ({$notes ? 'ON' : 'OFF'})">
+ 244 | 			<svg class="icon-outline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ 245 | 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+ 246 | 			</svg>
+ 247 | 			<span class="badge tracking-tighter" class:badge-primary={$notes}>{$notes ? 'ON' : 'OFF'}</span>
+ 248 | 		</button>
+ 249 | 
+ 250 | 	</div>
+ 251 | </div>
+ 252 | 
+ 253 | <style>
+ 254 | 	.action-buttons {
+ 255 | 		@apply flex flex-wrap justify-evenly self-end;
+ 256 | 	}
+ 257 | 
+ 258 | 	.btn-badge {
+ 259 | 		@apply relative;
+ 260 | 	}
+ 261 | 
+ 262 | 	.badge {
+ 263 | 		min-height: 20px;
+ 264 | 		min-width:  20px;
+ 265 | 		@apply p-1 rounded-full leading-none text-center text-xs text-white bg-gray-600 inline-block absolute top-0 left-0;
+ 266 | 	}
+ 267 | 
+ 268 | 	.badge-primary {
+ 269 | 		@apply bg-primary;
+ 270 | 	}
+ 271 | 
+ 272 | 	.fade-in {
+ 273 | 		animation: fadeIn 0.3s ease-in-out;
+ 274 | 	}
+ 275 | 
+ 276 | 	@keyframes fadeIn {
+ 277 | 		from { opacity: 0; transform: translateY(5px); }
+ 278 | 		to { opacity: 1; transform: translateY(0); }
+ 279 | 	}
+ 280 | </style>
 
 ============================================================
 文件: Controls\ActionBar\index.svelte
