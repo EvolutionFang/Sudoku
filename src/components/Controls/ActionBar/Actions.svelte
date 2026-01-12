@@ -18,17 +18,17 @@
 	let hintText = '';
 
 	/**
-	 * Triggers the intelligent hint calculation.
-	 * Passes setKeyboardHints to break the circular dependency chain.
+	 * Component-level handler that triggers the intelligent hint process.
+	 * Updates the local hintText state with the result from the hints store.
 	 */
 	function handleSmartHint() {
 		if (!hintsAvailable || !isCellEmpty || $gamePaused) return;
-		// Inject the keyboard update function as a dependency
 		hintText = hints.handleSmartHint($userGrid, $cursor, historyTree, setKeyboardHints);
 	}
 
 	/**
-	 * Manages the smart backtrack operation.
+	 * Component-level handler for the smart backtrack operation.
+	 * Restores the board to the last decision point and updates UI feedback.
 	 */
 	function handleBacktrack() {
 		if (performBacktrack()) {
