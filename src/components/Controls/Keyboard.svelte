@@ -12,7 +12,8 @@
 	$: isInBacktrackMode = $historyTree.isInBacktrackMode;
 
 	/**
-	 * Encapsulates store values and instances to pass to the domain logic.
+	 * Encapsulates current store snapshots and invokes the domain logic for key processing.
+	 * @param {number} num - The digit to be processed.
 	 */
 	function onKeyClick(num) {
 		processKey(num, {
@@ -21,6 +22,10 @@
 		});
 	}
 
+	/**
+	 * Global keyboard event listener that maps physical key presses to game actions.
+	 * @param {KeyboardEvent} e - The keyboard event object.
+	 */
 	function handleKey(e) {
 		const key = e.key || e.keyCode;
 		if (['ArrowUp', 38, 'w', 87].includes(key)) cursor.move(0, -1);
